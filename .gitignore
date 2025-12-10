@@ -1,0 +1,18 @@
+# Node
+renderer/node_modules
+renderer/dist
+renderer/.vite
+
+# Electron
+/electron-main/node_modules
+/electron-main/out
+
+# Go
+/backend/offline.db
+/backend/exports
+/backend/server
+/backend/server.exe
+/backend/*.log
+
+# OS
+.DS_Store

@@ -1,0 +1,14 @@
+{
+  "name": "electron-main",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "ELECTRON_DEV=1 electron .",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^30.0.9"
+  }
+}
