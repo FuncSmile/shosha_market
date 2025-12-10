@@ -16,23 +16,23 @@ import (
 )
 
 type UploadPayload struct {
-	BranchID          string                  `json:"branch_id"`
-	Products          []models.Product        `json:"products"`
-	Branches          []models.Branch         `json:"branches"`
-	Sales             []models.Sale           `json:"sales"`
-	SaleItems         []models.SaleItem       `json:"sale_items"`
-	StockOpnames      []models.StockOpname    `json:"stock_opnames"`
-	StockOpnameItems  []models.StockOpnameItem`json:"stock_opname_items"`
+	BranchID         string                   `json:"branch_id"`
+	Products         []models.Product         `json:"products"`
+	Branches         []models.Branch          `json:"branches"`
+	Sales            []models.Sale            `json:"sales"`
+	SaleItems        []models.SaleItem        `json:"sale_items"`
+	StockOpnames     []models.StockOpname     `json:"stock_opnames"`
+	StockOpnameItems []models.StockOpnameItem `json:"stock_opname_items"`
 }
 
 type ChangesResponse struct {
-	Products          []models.Product        `json:"products"`
-	Branches          []models.Branch         `json:"branches"`
-	Sales             []models.Sale           `json:"sales"`
-	SaleItems         []models.SaleItem       `json:"sale_items"`
-	StockOpnames      []models.StockOpname    `json:"stock_opnames"`
-	StockOpnameItems  []models.StockOpnameItem`json:"stock_opname_items"`
-	LastSyncAt        *time.Time              `json:"last_sync_at"`
+	Products         []models.Product         `json:"products"`
+	Branches         []models.Branch          `json:"branches"`
+	Sales            []models.Sale            `json:"sales"`
+	SaleItems        []models.SaleItem        `json:"sale_items"`
+	StockOpnames     []models.StockOpname     `json:"stock_opnames"`
+	StockOpnameItems []models.StockOpnameItem `json:"stock_opname_items"`
+	LastSyncAt       *time.Time               `json:"last_sync_at"`
 }
 
 func main() {
@@ -66,40 +66,56 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		save := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "address", "phone", "stock", "price", "branch_id", "total", "synced", "updated_at", "created_at"})}
-		tx := db.Clauses(save)
 		if len(payload.Branches) > 0 {
-			if err := tx.Create(&payload.Branches).Error; err != nil {
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"name", "address", "phone", "synced", "updated_at", "created_at"}),
+			}).Create(&payload.Branches).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}
 		if len(payload.Products) > 0 {
-			if err := tx.Create(&payload.Products).Error; err != nil {
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"name", "stock", "price", "branch_id", "synced", "updated_at", "created_at"}),
+			}).Create(&payload.Products).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}
 		if len(payload.Sales) > 0 {
-			if err := tx.Create(&payload.Sales).Error; err != nil {
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"receipt_no", "branch_id", "total", "synced", "updated_at", "created_at"}),
+			}).Create(&payload.Sales).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}
 		if len(payload.SaleItems) > 0 {
-			if err := tx.Create(&payload.SaleItems).Error; err != nil {
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "updated_at", "created_at"}),
+			}).Create(&payload.SaleItems).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}
 		if len(payload.StockOpnames) > 0 {
-			if err := tx.Create(&payload.StockOpnames).Error; err != nil {
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "updated_at", "created_at"}),
+			}).Create(&payload.StockOpnames).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}
 		if len(payload.StockOpnameItems) > 0 {
-			if err := tx.Create(&payload.StockOpnameItems).Error; err != nil {
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "updated_at", "created_at"}),
+			}).Create(&payload.StockOpnameItems).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
