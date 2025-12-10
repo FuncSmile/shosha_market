@@ -9,6 +9,7 @@ import Label from './ui/Label.vue'
 const branches = ref<Branch[]>([])
 const loading = ref(false)
 const message = ref('')
+const syncedInfo = ref<Record<string, boolean>>({})
 const form = reactive<Partial<Branch>>({
   name: '',
   code: '',
@@ -20,6 +21,10 @@ async function load() {
   loading.value = true
   try {
     branches.value = await api.listBranches()
+    syncedInfo.value = branches.value.reduce((acc, b) => {
+      acc[b.id] = Boolean(b.synced)
+      return acc
+    }, {} as Record<string, boolean>)
   } catch (err) {
     message.value = (err as Error).message
   } finally {
@@ -114,8 +119,11 @@ onMounted(load)
             >
               <div class="flex items-center justify-between">
                 <p class="text-sm font-semibold text-white">{{ branch.name }}</p>
-                <span class="rounded-full bg-emerald-500/20 px-2 py-1 text-[10px] uppercase tracking-wide text-emerald-100">
-                  sync pending
+                <span
+                  class="rounded-full px-2 py-1 text-[10px] uppercase tracking-wide"
+                  :class="syncedInfo[branch.id] ? 'bg-emerald-500/20 text-emerald-100' : 'bg-amber-500/20 text-amber-100'"
+                >
+                  {{ syncedInfo[branch.id] ? 'online (synced)' : 'offline (pending sync)' }}
                 </span>
               </div>
               <p class="text-xs text-slate-400">{{ branch.code }} · {{ branch.phone }}</p>

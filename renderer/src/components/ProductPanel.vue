@@ -10,6 +10,7 @@ const products = ref<Product[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const message = ref('')
+const syncedInfo = ref<Record<string, boolean>>({})
 const form = reactive<Partial<Product>>({
   name: '',
   sku: '',
@@ -21,6 +22,10 @@ async function load() {
   loading.value = true
   try {
     products.value = await api.listProducts()
+    syncedInfo.value = products.value.reduce((acc, p) => {
+      acc[p.id] = Boolean(p.synced)
+      return acc
+    }, {} as Record<string, boolean>)
   } catch (err) {
     message.value = (err as Error).message
   } finally {
@@ -119,7 +124,12 @@ onMounted(load)
                 <p class="text-xs text-slate-400">SKU {{ product.sku }} • Stok {{ product.stock }} • Rp{{ product.price }}</p>
               </div>
               <div class="flex items-center gap-2">
-                <span class="rounded-full bg-emerald-500/20 px-2 py-1 text-[10px] uppercase tracking-wide text-emerald-100">offline</span>
+                <span
+                  class="rounded-full px-2 py-1 text-[10px] uppercase tracking-wide"
+                  :class="syncedInfo[product.id] ? 'bg-emerald-500/20 text-emerald-100' : 'bg-amber-500/20 text-amber-100'"
+                >
+                  {{ syncedInfo[product.id] ? 'online (synced)' : 'offline (pending sync)' }}
+                </span>
                 <Button variant="ghost" class="text-xs" @click="edit(product)">Edit</Button>
                 <Button variant="ghost" class="text-xs text-rose-200" @click="remove(product.id)">Hapus</Button>
               </div>
