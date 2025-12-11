@@ -23,7 +23,7 @@ func main() {
 		envPath := filepath.Join(filepath.Dir(exePath), ".env")
 		_ = godotenv.Load(envPath)
 	}
-	
+
 	cfg := config.Load()
 
 	db, err := services.Connect(cfg)
