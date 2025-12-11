@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +16,14 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load()
+	// Load .env from current directory or executable directory
+	if err := godotenv.Load(); err != nil {
+		// Fallback: try loading from executable's directory (production)
+		exePath, _ := os.Executable()
+		envPath := filepath.Join(filepath.Dir(exePath), ".env")
+		_ = godotenv.Load(envPath)
+	}
+	
 	cfg := config.Load()
 
 	db, err := services.Connect(cfg)
