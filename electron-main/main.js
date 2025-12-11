@@ -18,20 +18,45 @@ async function createWindow() {
   })
 
   const devURL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
-  const distPath = path.join(__dirname, '../renderer/dist/index.html')
+  
+  // Determine correct path based on whether app is packaged
+  let distPath
+  if (app.isPackaged) {
+    // In packaged app, files are in app.asar or app.asar directory
+    // renderer/dist is bundled inside asar at /renderer/dist/index.html
+    distPath = path.join(__dirname, 'renderer', 'dist', 'index.html')
+  } else {
+    // In development
+    distPath = path.join(__dirname, '../renderer/dist/index.html')
+  }
+
   let loaded = false
 
+  // Try dev server first if in dev mode
   if (process.env.ELECTRON_DEV) {
     try {
       await win.loadURL(devURL)
       loaded = true
+      console.log('✓ Loaded from dev server:', devURL)
     } catch (err) {
-      console.error('Dev server not reachable, fallback to dist:', err?.message || err)
+      console.error('✗ Dev server not reachable, fallback to dist:', err?.message || err)
     }
   }
 
+  // Load from file if dev server failed or not in dev mode
   if (!loaded) {
-    await win.loadFile(distPath)
+    console.log('Loading from file:', distPath)
+    console.log('  __dirname:', __dirname)
+    console.log('  app.isPackaged:', app.isPackaged)
+    
+    try {
+      await win.loadFile(distPath)
+      console.log('✓ Successfully loaded from:', distPath)
+    } catch (err) {
+      console.error('✗ Failed to load file:', err)
+      console.error('  Attempted path:', distPath)
+      console.error('  File exists:', fs.existsSync(distPath))
+    }
   }
 }
 
@@ -46,9 +71,6 @@ function isPortFree(port) {
 }
 
 async function spawnBackend() {
-  const backendCwd = path.join(__dirname, '../backend')
-  const compiled = process.platform === 'win32' ? 'server.exe' : './server'
-  const compiledPath = path.join(backendCwd, compiled)
   const port = Number(process.env.BACKEND_PORT || 8080)
 
   const free = await isPortFree(port)
@@ -57,13 +79,50 @@ async function spawnBackend() {
     return
   }
 
+  let backendCwd
+  let backendBinary
+
+  if (app.isPackaged) {
+    // In production, backend is in resources/backend
+    backendCwd = path.join(process.resourcesPath, 'backend')
+    backendBinary = process.platform === 'win32' ? 'server.exe' : 'server'
+    
+    // Fallback ke resources/app/backend jika tidak ada di resources/backend
+    if (!fs.existsSync(path.join(backendCwd, backendBinary))) {
+      backendCwd = path.join(process.resourcesPath, 'app', 'backend')
+    }
+  } else {
+    // In development
+    backendCwd = path.join(__dirname, '../backend')
+    backendBinary = process.platform === 'win32' ? 'server.exe' : 'server'
+  }
+
+  const backendPath = path.join(backendCwd, backendBinary)
+  
+  console.log('Backend path:', backendPath)
+  console.log('Backend exists:', fs.existsSync(backendPath))
+
   const useGoRun =
     process.env.BACKEND_DEV === 'true' ||
     process.env.ELECTRON_DEV ||
-    !fs.existsSync(compiledPath)
+    !fs.existsSync(backendPath)
 
-  const cmd = useGoRun ? 'go' : compiled
-  const args = useGoRun ? ['run', '.'] : []
+  let cmd, args
+
+  if (useGoRun) {
+    cmd = 'go'
+    args = ['run', '.']
+    console.log('Using go run for development')
+  } else {
+    if (process.platform === 'win32') {
+      cmd = backendPath
+      args = []
+    } else {
+      cmd = backendPath
+      args = []
+    }
+    console.log('Using compiled backend:', cmd)
+  }
 
   goProcess = spawn(cmd, args, { cwd: backendCwd, env: process.env })
 

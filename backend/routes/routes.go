@@ -12,9 +12,19 @@ import (
 
 func Register(r *gin.Engine, db *gorm.DB, cfg config.AppConfig, worker *syncsvc.Worker) {
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:5173", "http://127.0.0.1:5173"},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Origin", "Content-Type"},
+		AllowOrigins:     []string{"http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8080", "http://127.0.0.1:8080"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type"},
+		AllowCredentials: true,
+		AllowOriginFunc: func(origin string) bool {
+			// Allow Electron file:// protocol dan localhost
+			return origin == "" ||
+				origin == "file://" ||
+				origin == "http://localhost:5173" ||
+				origin == "http://127.0.0.1:5173" ||
+				origin == "http://localhost:8080" ||
+				origin == "http://127.0.0.1:8080"
+		},
 	}))
 
 	r.GET("/api/health", controllers.Health)

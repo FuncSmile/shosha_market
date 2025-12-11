@@ -1,0 +1,14 @@
+# Development Dockerfile untuk backend Go dengan hot reload menggunakan air
+# Usage: docker build -t shosha-backend-dev -f Dockerfile.dev --target backend-dev .
+
+FROM golang:1.23-alpine AS backend-dev
+
+WORKDIR /app
+
+# Install dependencies dan hot reload tool (air)
+RUN apk add --no-cache gcc musl-dev sqlite-dev git && \
+    go install github.com/cosmtrek/air@latest
+
+EXPOSE 8080
+
+CMD ["air", "-c", "backend/.air.toml"]

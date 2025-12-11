@@ -1,0 +1,65 @@
+# Dockerfile untuk build Electron app untuk Windows & Linux
+# Multi-platform build support
+
+FROM node:20-alpine AS builder-base
+
+WORKDIR /app
+
+# Install dependencies untuk build
+RUN apk add --no-cache \
+    git \
+    python3 \
+    make \
+    g++ \
+    gcc
+
+# Copy all project files
+COPY . .
+
+# Install dependencies untuk renderer
+WORKDIR /app/renderer
+RUN npm ci
+
+# Install dependencies untuk electron-main
+WORKDIR /app/electron-main
+RUN npm ci
+
+# Build backend Go binary
+WORKDIR /app/backend
+RUN apk add --no-cache go gcc musl-dev sqlite-dev && \
+    go mod download && \
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o server main.go && \
+    mkdir -p ../electron-main/resources/backend && \
+    cp server ../electron-main/resources/backend/
+
+# Stage untuk Linux build
+FROM builder-base AS builder-linux
+
+WORKDIR /app/electron-main
+
+RUN npm run build:renderer && \
+    npx electron-builder --linux AppImage --publish never
+
+# Output: /app/release/ShoshaMart POS-0.1.0.AppImage
+
+
+# Stage untuk development (hot reload)
+FROM node:20-alpine AS dev
+
+WORKDIR /app
+
+RUN apk add --no-cache \
+    git \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    go \
+    sqlite-dev
+
+COPY . .
+
+# Expose ports untuk dev services
+EXPOSE 5173 8080
+
+CMD ["sh", "-c", "cd backend && go run main.go & cd renderer && npm run dev -- --host 0.0.0.0"]

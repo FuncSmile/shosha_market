@@ -17,5 +17,8 @@ renderer/.vite
 # OS
 .DS_Store
 
+#md
+*.md
+
 # Release builds
 /release

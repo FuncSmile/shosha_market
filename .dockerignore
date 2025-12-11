@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+dist
+build
+
+# Go
+vendor
+*.exe
+*.dll
+*.so
+*.dylib
+.mod
+.sum
+offline.db
+server
+
+# Electron
+release
+out
+*.asar
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Development
+.env.local
+.env.*.local
