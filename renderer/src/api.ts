@@ -60,6 +60,14 @@ export interface SalesAnalytics {
   perDay: { day: string; orders: number; items: number; revenue: number }[]
 }
 
+export interface SyncSummary {
+  queuedChanges: number
+  lastSyncAt: string | null
+  dbPath: string
+  status: string
+  lastError?: string
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8080/api';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -125,4 +133,7 @@ export const api = {
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
     return request<SalesAnalytics>(`/analytics/sales${suffix}`);
   },
+
+  syncSummary: () => request<SyncSummary>('/sync/summary'),
+  syncRun: () => request<{ status: string }>('/sync/run', { method: 'POST' }),
 };

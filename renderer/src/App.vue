@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import DashboardPanel from './components/DashboardPanel.vue'
 import ProductPanel from './components/ProductPanel.vue'
 import SalesPanel from './components/SalesPanel.vue'
 import BranchPanel from './components/BranchPanel.vue'
 import StockOpnamePanel from './components/StockOpnamePanel.vue'
 import ReportsPanel from './components/ReportsPanel.vue'
+import { api, type SyncSummary } from './api'
+import Button from './components/ui/Button.vue'
 
 const tabs = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -30,6 +32,40 @@ const current = computed(() => components[active.value as keyof typeof component
 function go(key: string) {
   active.value = key
 }
+
+const syncSummary = ref<SyncSummary | null>(null)
+const syncing = ref(false)
+let timer: ReturnType<typeof setInterval> | null = null
+
+async function loadSummary() {
+  try {
+    syncSummary.value = await api.syncSummary()
+  } catch (err) {
+    // ignore for now
+  }
+}
+
+async function runSync() {
+  syncing.value = true
+  try {
+    await api.syncRun()
+  } catch (err) {
+    // ignore
+  } finally {
+    syncing.value = false
+    await loadSummary()
+  }
+}
+
+onMounted(async () => {
+  // trigger sync awal supaya laptop lain bisa pull data dari upstream
+  await runSync()
+  timer = setInterval(loadSummary, 30000)
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <template>
@@ -66,7 +102,18 @@ function go(key: string) {
           <p class="text-xs uppercase tracking-[0.3em] text-emerald-200/80">Control Panel</p>
           <p class="text-sm text-slate-300">Kelola data, POS, opname, dan laporan.</p>
         </div>
-        <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-100">Sidecar: 127.0.0.1:8080</span>
+        <div class="flex items-center gap-3">
+          <div
+            class="rounded-full px-3 py-1 text-xs font-semibold"
+            :class="syncSummary?.status === 'online' ? 'bg-emerald-500/20 text-emerald-100' : 'bg-amber-500/20 text-amber-100'"
+          >
+            {{ syncSummary?.status ?? 'offline' }}
+            <span v-if="syncSummary?.queuedChanges">· {{ syncSummary?.queuedChanges }} antrian</span>
+          </div>
+          <Button variant="outline" :disabled="syncing" @click="runSync">
+            {{ syncing ? 'Sync...' : 'Sync sekarang' }}
+          </Button>
+        </div>
       </header>
 
       <div class="rounded-2xl border border-white/5 bg-slate-900/60 p-6 shadow-xl shadow-emerald-500/5">

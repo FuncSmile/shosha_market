@@ -16,3 +16,6 @@ renderer/.vite
 
 # OS
 .DS_Store
+
+# Release builds
+/release
