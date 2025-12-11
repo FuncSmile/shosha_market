@@ -68,7 +68,39 @@ export interface SyncSummary {
   lastError?: string
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8080/api';
+// Detect backend URL based on environment
+function getApiBase(): string {
+  // Priority 1: Environment variable (for Docker/custom deployments)
+  if (import.meta.env.VITE_API_BASE) {
+    return import.meta.env.VITE_API_BASE;
+  }
+  
+  // Priority 2: Detect if running in Electron
+  const isElectron = navigator.userAgent.includes('Electron');
+  
+  // Priority 3: Check current location
+  const isFileProtocol = window.location.protocol === 'file:';
+  
+  if (isElectron || isFileProtocol) {
+    // In Electron production, backend runs on localhost:8080
+    return 'http://127.0.0.1:8080/api';
+  }
+  
+  // Development mode (Vite dev server on :5173)
+  // Backend should be on :8080
+  if (window.location.port === '5173') {
+    return 'http://127.0.0.1:8080/api';
+  }
+  
+  // Fallback
+  return 'http://127.0.0.1:8080/api';
+}
+
+const API_BASE = getApiBase();
+
+console.log('[API] Using backend URL:', API_BASE);
+console.log('[API] User agent:', navigator.userAgent);
+console.log('[API] Protocol:', window.location.protocol);
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

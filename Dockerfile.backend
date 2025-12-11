@@ -1,0 +1,46 @@
+# Multi-stage build untuk backend Go (Sidecar Service)
+# Stage 1: Build backend Go binary
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /build
+
+# Install dependencies untuk CGO (sqlite3)
+RUN apk add --no-cache gcc musl-dev sqlite-dev
+
+# Copy backend code
+COPY backend/go.mod backend/go.sum* ./
+COPY backend/ ./
+
+# Download dependencies
+RUN go mod download
+
+# Build binary
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o server main.go
+
+# Stage 2: Runtime backend
+FROM alpine:3.19
+
+WORKDIR /app
+
+# Install sqlite runtime dependencies
+RUN apk add --no-cache libsqlite3 ca-certificates
+
+# Copy binary dari builder
+COPY --from=builder /build/server .
+
+# Expose port untuk sidecar
+EXPOSE 8080
+
+# Environment variables defaults
+ENV POS_DB_PATH="/app/data/offline.db"
+ENV POS_BIND_ADDR="0.0.0.0:8080"
+ENV POS_EXPORT_DIR="/app/exports"
+
+# Create data directory
+RUN mkdir -p /app/data /app/exports
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:8080/api/health || exit 1
+
+CMD ["./server"]

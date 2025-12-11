@@ -9,10 +9,12 @@
   "scripts": {
     "dev": "ELECTRON_DEV=1 electron .",
     "start": "electron .",
+    "prebuild": "node scripts/prebuild.js",
     "build:renderer": "npm run build --prefix ../renderer",
-    "dist": "npm run build:renderer && electron-builder --linux AppImage --win nsis",
-    "dist:linux": "npm run build:renderer && electron-builder --linux AppImage",
-    "dist:win": "npm run build:renderer && electron-builder --win nsis"
+    "build:backend": "node scripts/build-backend.js",
+    "dist": "npm run prebuild && npm run build:renderer && electron-builder --linux AppImage --win nsis",
+    "dist:linux": "npm run prebuild && npm run build:renderer && electron-builder --linux AppImage",
+    "dist:win": "npm run prebuild && npm run build:renderer && electron-builder --win nsis"
   },
   "devDependencies": {
     "electron": "^30.0.9",
@@ -25,8 +27,13 @@
       "output": "../release"
     },
     "files": [
-      "**/*",
-      "../renderer/dist/**/*"
+      "main.js",
+      "package.json",
+      {
+        "from": "../renderer/dist",
+        "to": "renderer/dist",
+        "filter": ["**/*"]
+      }
     ],
     "extraResources": [
       {
@@ -34,8 +41,9 @@
         "to": "backend",
         "filter": [
           "server",
+          "server.exe",
           "offline.db",
-          "config/**/*"
+          ".env"
         ]
       }
     ],

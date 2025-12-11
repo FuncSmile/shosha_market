@@ -1,0 +1,36 @@
+# Multi-stage build untuk frontend Vue + Vite
+# Stage 1: Build renderer
+FROM node:20-alpine AS builder
+
+WORKDIR /build
+
+# Copy renderer package files
+COPY renderer/package.json renderer/package-lock.json* renderer/yarn.lock* ./
+
+# Install dependencies
+RUN npm ci || npm install
+
+# Copy renderer source
+COPY renderer/ ./
+
+# Build untuk production
+RUN npm run build
+
+# Stage 2: Serve static files (production)
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install simple HTTP server untuk serve static files
+RUN npm install -g serve
+
+# Copy built files dari builder
+COPY --from=builder /build/dist ./dist
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3000 || exit 1
+
+# Serve on port 3000
+CMD ["serve", "-s", "dist", "-l", "3000"]

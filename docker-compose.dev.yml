@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Backend development dengan hot reload (air)
+  backend-dev:
+    image: golang:1.23-alpine
+    container_name: shosha_mart_backend_dev
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - "8080:8080"
+    environment:
+      - POS_DB_PATH=/app/backend/offline.db
+      - POS_BIND_ADDR=0.0.0.0:8080
+      - POS_EXPORT_DIR=/app/backend/exports
+      - POS_BRANCH_ID=docker-dev
+    networks:
+      - shosha_network_dev
+    command: >
+      sh -c "apk add --no-cache gcc musl-dev sqlite-dev git &&
+             go install github.com/cosmtrek/air@latest &&
+             cd backend &&
+             /root/go/bin/air"
+    restart: unless-stopped
+
+  # Frontend development dengan hot reload (Vite)
+  frontend-dev:
+    image: node:20-alpine
+    container_name: shosha_mart_frontend_dev
+    working_dir: /app/renderer
+    volumes:
+      - ./renderer:/app/renderer
+    ports:
+      - "5173:5173"
+    networks:
+      - shosha_network_dev
+    command: >
+      sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    restart: unless-stopped
+
+networks:
+  shosha_network_dev:
+    driver: bridge
