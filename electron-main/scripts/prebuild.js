@@ -89,4 +89,14 @@ if (process.platform === 'linux') {
   }
 }
 
+// Ensure .env exists for production (copy from .env.production if .env doesn't exist)
+const envPath = path.join(backendDir, '.env');
+const envProductionPath = path.join(backendDir, '.env.production');
+
+if (!fs.existsSync(envPath) && fs.existsSync(envProductionPath)) {
+  console.log('📝 Creating .env from .env.production...');
+  fs.copyFileSync(envProductionPath, envPath);
+  console.log('✓ .env created for production build');
+}
+
 console.log('✅ Backend build complete');
