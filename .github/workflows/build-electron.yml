@@ -20,19 +20,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-          cache: 'go'
-          cache-dependency-path: backend/go.sum
       
       - name: Install dependencies
         run: |
-          cd renderer && npm ci
-          cd ../electron-main && npm ci
+          cd renderer && npm install
+          cd ../electron-main && npm install
       
       - name: Build backend
         run: |
@@ -76,21 +73,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-          cache: 'go'
-          cache-dependency-path: backend/go.sum
       
       - name: Install dependencies
         run: |
           cd renderer
-          npm ci
+          npm install
           cd ..\electron-main
-          npm ci
+          npm install
       
       - name: Build backend (Windows)
         run: |
@@ -136,19 +130,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-          cache: 'go'
-          cache-dependency-path: backend/go.sum
       
       - name: Install dependencies
         run: |
-          cd renderer && npm ci
-          cd ../electron-main && npm ci
+          cd renderer && npm install
+          cd ../electron-main && npm install
       
       - name: Build backend (macOS)
         run: |
