@@ -18,12 +18,12 @@ func Register(r *gin.Engine, db *gorm.DB, cfg config.AppConfig, worker *syncsvc.
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
 			// Allow Electron file:// protocol dan localhost
-			return origin == "" || 
-				   origin == "file://" || 
-				   origin == "http://localhost:5173" || 
-				   origin == "http://127.0.0.1:5173" ||
-				   origin == "http://localhost:8080" ||
-				   origin == "http://127.0.0.1:8080"
+			return origin == "" ||
+				origin == "file://" ||
+				origin == "http://localhost:5173" ||
+				origin == "http://127.0.0.1:5173" ||
+				origin == "http://localhost:8080" ||
+				origin == "http://127.0.0.1:8080"
 		},
 	}))
 
