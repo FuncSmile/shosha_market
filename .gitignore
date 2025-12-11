@@ -17,8 +17,15 @@ renderer/.vite
 # OS
 .DS_Store
 
-#md
-*.md
-
-# Release builds
-/release
+# Release builds (keep directory structure but ignore binaries)
+/release/*.AppImage
+/release/*.exe
+/release/*.dmg
+/release/*.deb
+/release/*.rpm
+/release/*.snap
+/release/*.blockmap
+/release/linux-unpacked/
+/release/win-unpacked/
+/release/mac/
+/release/mac-arm64/
