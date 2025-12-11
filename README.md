@@ -2,6 +2,15 @@
 
 Stack mengikuti techspec: Electron (main), Vue 3 + Vite (TypeScript) + Tailwind untuk renderer, serta sidecar backend Go (Gin + GORM + SQLite) yang siap sinkron ke PostgreSQL. Semua data ditulis ke SQLite lebih dulu; flag `synced` disiapkan untuk antrean upload saat koneksi tersedia.
 
+## 📥 Download Aplikasi
+
+**[⬇️ Download Latest Release](https://github.com/FuncSmile/shosha_market/releases/latest)**
+
+Atau pilih versi spesifik:
+- **Windows**: [ShoshaMart-POS-Setup.exe](https://github.com/FuncSmile/shosha_market/releases)
+- **Linux**: [ShoshaMart-POS.AppImage](https://github.com/FuncSmile/shosha_market/releases)
+- **macOS**: [ShoshaMart-POS.dmg](https://github.com/FuncSmile/shosha_market/releases)
+
 ## Struktur
 - `renderer/` – UI desktop (Vue 3, TypeScript, Tailwind).
 - `backend/` – Sidecar Go (Gin + GORM + SQLite + Excelize) di `127.0.0.1:8080`.

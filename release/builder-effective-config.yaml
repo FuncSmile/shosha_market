@@ -1,0 +1,30 @@
+directories:
+  output: ../release
+  buildResources: build
+appId: com.shosha.mart
+productName: ShoshaMart POS
+files:
+  - filter:
+      - main.js
+      - package.json
+  - from: ../renderer/dist
+    to: renderer/dist
+    filter:
+      - '**/*'
+extraResources:
+  - from: ../backend
+    to: backend
+    filter:
+      - server
+      - server.exe
+      - offline.db
+      - .env
+linux:
+  target:
+    - AppImage
+  category: Utility
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-${version}-Setup.${ext}
+electronVersion: 30.5.1
