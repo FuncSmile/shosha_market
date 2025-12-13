@@ -27,17 +27,23 @@ func ListProducts(db *gorm.DB) gin.HandlerFunc {
 func CreateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
     return func(c *gin.Context) {
         var payload struct {
-            Name  string  `json:"name"`
-            Stock int     `json:"stock"`
-            Price float64 `json:"price"`
+            Name     string  `json:"name" binding:"required"`
+            SKU      string  `json:"sku"`
+            Unit     string  `json:"unit" binding:"required"`
+            Quantity int     `json:"quantity" binding:"required,gt=0"`
+            Stock    int     `json:"stock"`
+            Price    float64 `json:"price" binding:"required,gt=0"`
         }
         if err := c.ShouldBindJSON(&payload); err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
             return
         }
         product := models.Product{
             ID:       uuid.NewString(),
             Name:     payload.Name,
+            SKU:      payload.SKU,
+            Unit:     payload.Unit,
+            Quantity: payload.Quantity,
             Stock:    payload.Stock,
             Price:    payload.Price,
             Synced:   false,
@@ -56,9 +62,12 @@ func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		var payload struct {
-			Name  string  `json:"name"`
-			Stock int     `json:"stock"`
-			Price float64 `json:"price"`
+			Name     string  `json:"name"`
+			SKU      string  `json:"sku"`
+			Unit     string  `json:"unit"`
+			Quantity int     `json:"quantity"`
+			Stock    int     `json:"stock"`
+			Price    float64 `json:"price"`
 		}
 		if err := c.ShouldBindJSON(&payload); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
@@ -74,10 +83,13 @@ func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 
 		// Update product
 		if err := db.Model(&product).Updates(models.Product{
-			Name:   payload.Name,
-			Stock:  payload.Stock,
-			Price:  payload.Price,
-			Synced: false, // Mark as unsynced when updated
+			Name:     payload.Name,
+			SKU:      payload.SKU,
+			Unit:     payload.Unit,
+			Quantity: payload.Quantity,
+			Stock:    payload.Stock,
+			Price:    payload.Price,
+			Synced:   false, // Mark as unsynced when updated
 		}).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

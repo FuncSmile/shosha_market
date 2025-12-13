@@ -6,6 +6,9 @@ import "time"
 type Product struct {
     ID        string    `json:"id" gorm:"primaryKey"`
     Name      string    `json:"name"`
+    SKU       string    `json:"sku"`
+    Unit      string    `json:"unit"`        // Satuan (kg, pcs, liter, dll)
+    Quantity  int       `json:"quantity"`    // Banyak isi per package
     Stock     int       `json:"stock"`
     Price     float64   `json:"price"`
     Synced    bool      `json:"synced"`
