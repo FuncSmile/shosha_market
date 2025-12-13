@@ -14,6 +14,8 @@ const syncedInfo = ref<Record<string, boolean>>({})
 const form = reactive<Partial<Product>>({
   name: '',
   sku: '',
+  unit: '',
+  quantity: 0,
   stock: 0,
   price: 0,
 })
@@ -42,7 +44,7 @@ async function save() {
     } else {
       await api.createProduct(form)
     }
-    Object.assign(form, { id: undefined, name: '', sku: '', stock: 0, price: 0 })
+    Object.assign(form, { id: undefined, name: '', sku: '', unit: '', quantity: 0, stock: 0, price: 0 })
     await load()
   } catch (err) {
     message.value = (err as Error).message
@@ -88,6 +90,16 @@ onMounted(load)
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1">
+                <Label>Satuan</Label>
+                <Input v-model="form.unit" placeholder="kg, pcs, liter" required />
+              </div>
+              <div class="space-y-1">
+                <Label>Banyak Isi</Label>
+                <Input v-model="form.quantity" type="number" min="1" required />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
                 <Label>Stok</Label>
                 <Input v-model="form.stock" type="number" min="0" />
               </div>
@@ -98,7 +110,7 @@ onMounted(load)
             </div>
             <div class="flex items-center gap-2">
               <Button type="submit" :disabled="saving">{{ form.id ? 'Simpan Perubahan' : 'Tambah Barang' }}</Button>
-              <Button type="button" variant="ghost" @click="Object.assign(form, { id: undefined, name: '', sku: '', stock: 0, price: 0 })">
+              <Button type="button" variant="ghost" @click="Object.assign(form, { id: undefined, name: '', sku: '', unit: '', quantity: 0, stock: 0, price: 0 })">
                 Reset
               </Button>
             </div>
@@ -121,7 +133,7 @@ onMounted(load)
             >
               <div>
                 <p class="font-semibold text-white">{{ product.name }}</p>
-                <p class="text-xs text-slate-400">SKU {{ product.sku }} • Stok {{ product.stock }} • Rp{{ product.price }}</p>
+                <p class="text-xs text-slate-400">SKU {{ product.sku }} • {{ product.quantity }} {{ product.unit }} • Stok {{ product.stock }} • Rp{{ product.price }}</p>
               </div>
               <div class="flex items-center gap-2">
                 <span
