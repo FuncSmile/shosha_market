@@ -50,3 +50,59 @@ func CreateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
         c.JSON(http.StatusCreated, product)
     }
 }
+
+// UpdateProduct updates an existing product.
+func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var payload struct {
+			Name  string  `json:"name"`
+			Stock int     `json:"stock"`
+			Price float64 `json:"price"`
+		}
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			return
+		}
+
+		// Check if product exists
+		var product models.Product
+		if err := db.First(&product, "id = ?", id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
+			return
+		}
+
+		// Update product
+		if err := db.Model(&product).Updates(models.Product{
+			Name:   payload.Name,
+			Stock:  payload.Stock,
+			Price:  payload.Price,
+			Synced: false, // Mark as unsynced when updated
+		}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, product)
+	}
+}
+
+// DeleteProduct removes a product from database.
+func DeleteProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		// Check if product exists
+		var product models.Product
+		if err := db.First(&product, "id = ?", id).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
+			return
+		}
+
+		// Delete product
+		if err := db.Delete(&product).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "product deleted"})
+	}
+}
