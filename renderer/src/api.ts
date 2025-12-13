@@ -2,6 +2,8 @@ export interface Product {
   id: string
   name: string
   sku: string
+  unit: string
+  quantity: number
   stock: number
   price: number
   synced: boolean
