@@ -5,7 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/FuncSmile/shosha_market/backend/models"
+	"shosha_mart_backend/models"
 )
 
 // Summary aggregates unsynced records and last sync marker.
