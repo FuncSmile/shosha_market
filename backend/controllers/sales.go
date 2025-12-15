@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"shosha_mart/backend/config"
+	"shosha_mart/backend/exports"
 	"shosha_mart/backend/models"
 )
 
@@ -18,9 +19,11 @@ import (
 func CreateSale(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var payload struct {
-			BranchID  string `json:"branch_id"`
-			ReceiptNo string `json:"receipt_no"`
-			Items     []struct {
+			BranchID      string `json:"branch_id"`
+			ReceiptNo     string `json:"receipt_no"`
+			PaymentMethod string `json:"payment_method"` // "cash" or "hutang"
+			Notes         string `json:"notes"`
+			Items         []struct {
 				ProductID string  `json:"product_id"`
 				Qty       int     `json:"qty"`
 				Price     float64 `json:"price"`
@@ -63,6 +66,7 @@ func CreateSale(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 		}
 
 		branchID := chooseBranch(payload.BranchID, cfg.BranchID)
+		branchName := ""
 		// Pastikan branch ada agar FK tidak gagal.
 		if branchID != "" {
 			var branch models.Branch
@@ -82,14 +86,25 @@ func CreateSale(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
+				branchName = branchID
+			} else {
+				branchName = branch.Name
 			}
 		}
 
+		paymentMethod := payload.PaymentMethod
+		if paymentMethod != "cash" && paymentMethod != "hutang" {
+			paymentMethod = "cash" // default
+		}
+
 		sale := models.Sale{
-			ID:        uuid.NewString(),
-			ReceiptNo: payload.ReceiptNo,
-			BranchID:  branchID,
-			Synced:    false,
+			ID:            uuid.NewString(),
+			ReceiptNo:     payload.ReceiptNo,
+			BranchID:      branchID,
+			BranchName:    branchName,
+			PaymentMethod: paymentMethod,
+			Notes:         payload.Notes,
+			Synced:        false,
 		}
 
 		err := db.Transaction(func(tx *gorm.DB) error {
@@ -149,4 +164,56 @@ func chooseBranch(payload, fallback string) string {
 
 func generateReceiptNo() string {
 	return time.Now().Format("060102150405")
+}
+
+// ListSales returns recent sales with basic fields (including BranchName and Total)
+func ListSales(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var sales []models.Sale
+		if err := db.Order("created_at DESC").Find(&sales).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, sales)
+	}
+}
+
+// GetSale returns a sale by id including its items with computed subtotals
+func GetSale(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		var sale models.Sale
+		if err := db.First(&sale, "id = ?", id).Error; err != nil {
+			status := http.StatusInternalServerError
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				status = http.StatusNotFound
+			}
+			c.JSON(status, gin.H{"error": "sale not found"})
+			return
+		}
+		var items []models.SaleItem
+		if err := db.Where("sale_id = ?", sale.ID).Find(&items).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		sale.Items = items
+		c.JSON(http.StatusOK, sale)
+	}
+}
+
+// ExportSalesReport generates an Excel file with sales grouped by branch (one sheet per branch)
+func ExportSalesReport(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		f, err := exports.ExportSalesByBranch(db)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		filename := fmt.Sprintf("sales-export-%s.xlsx", time.Now().Format("20060102-150405"))
+		c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+		if err := f.Write(c.Writer); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+	}
 }

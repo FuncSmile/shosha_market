@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { api, type SalesAnalytics } from '../api'
+import { api, type SalesAnalytics, type Branch, type Sale } from '../api'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
@@ -12,10 +12,13 @@ const emit = defineEmits<{ (e: 'navigate', key: string): void }>()
 const loading = ref(false)
 const message = ref('')
 const analytics = ref<SalesAnalytics | null>(null)
+const allSales = ref<Sale[]>([])
+const branches = ref<Branch[]>([])
 const filters = reactive({
   start: '',
   end: '',
   sort: 'asc',
+  branch_id: '', // empty = all branches
 })
 
 const shortcuts = [
@@ -25,9 +28,40 @@ const shortcuts = [
   { label: 'Export Laporan', key: 'reports' },
 ]
 
+// Filter sales berdasarkan branch_id
+const filteredSales = computed(() => {
+  if (!filters.branch_id) return allSales.value
+  return allSales.value.filter((s) => s.branch_id === filters.branch_id)
+})
+
+// Hitung totals dari filtered sales
+const totals = computed(() => {
+  const filtered = filteredSales.value
+  const totalRevenue = filtered.reduce((sum, s) => sum + (s.total || 0), 0)
+  const totalOrders = filtered.length
+  const totalItems = filtered.reduce((sum, s) => sum + (s.items?.length || 0), 0)
+  return { totalRevenue, totalOrders, totalItems }
+})
+
+// Hitung per-day analytics dari filtered sales
+const perDayAnalytics = computed(() => {
+  const dayMap: Record<string, { orders: number; items: number; revenue: number }> = {}
+  filteredSales.value.forEach((sale) => {
+    const d = new Date(sale.created_at)
+    const dayStr = d.toISOString().split('T')[0]
+    if (!dayMap[dayStr]) dayMap[dayStr] = { orders: 0, items: 0, revenue: 0 }
+    dayMap[dayStr].orders += 1
+    dayMap[dayStr].items += sale.items?.length || 0
+    dayMap[dayStr].revenue += sale.total || 0
+  })
+  return Object.entries(dayMap).map(([day, data]) => ({
+    day,
+    ...data,
+  }))
+})
+
 const perDaySorted = computed(() => {
-  if (!analytics.value) return []
-  return [...analytics.value.perDay].sort((a, b) =>
+  return [...perDayAnalytics.value].sort((a, b) =>
     filters.sort === 'asc' ? a.day.localeCompare(b.day) : b.day.localeCompare(a.day),
   )
 })
@@ -44,6 +78,9 @@ async function loadAnalytics() {
     analytics.value = await api.salesAnalytics(filters.start, filters.end)
     if (!filters.start) filters.start = analytics.value.start
     if (!filters.end) filters.end = analytics.value.end
+    
+    // Load all sales for filtering
+    allSales.value = await api.listSales()
   } catch (err) {
     message.value = (err as Error).message
   } finally {
@@ -51,7 +88,18 @@ async function loadAnalytics() {
   }
 }
 
-onMounted(loadAnalytics)
+async function loadBranches() {
+  try {
+    branches.value = await api.listBranches()
+  } catch (err) {
+    // ignore
+  }
+}
+
+onMounted(async () => {
+  await loadBranches()
+  await loadAnalytics()
+})
 </script>
 
 <template>
@@ -78,17 +126,27 @@ onMounted(loadAnalytics)
               <Input v-model="filters.end" type="date" @change="loadAnalytics" />
             </div>
           </div>
-          <div class="grid gap-2 md:grid-cols-[1fr_auto]">
-            <div>
-              <Label>Urut</Label>
-              <Select v-model="filters.sort" @change="loadAnalytics">
-                <option value="asc">Tanggal naik</option>
-                <option value="desc">Tanggal turun</option>
-              </Select>
-            </div>
-            <div class="flex items-end">
-              <Button variant="outline" class="w-full" @click="loadAnalytics">Refresh</Button>
-            </div>
+          <div class="space-y-2">
+            <Label>Filter cabang</Label>
+            <Select v-model="filters.branch_id">
+              <option value="">Semua Cabang</option>
+              <option v-for="b in branches" :key="b.id" :value="b.id">
+                {{ b.name }} ({{ b.code }})
+              </option>
+            </Select>
+          </div>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-3">
+          <div>
+            <Label>Urut</Label>
+            <Select v-model="filters.sort" @change="loadAnalytics">
+              <option value="asc">Tanggal naik</option>
+              <option value="desc">Tanggal turun</option>
+            </Select>
+          </div>
+          <div class="flex items-end">
+            <Button variant="outline" class="w-full" @click="loadAnalytics">Refresh</Button>
           </div>
         </div>
 
@@ -111,19 +169,19 @@ onMounted(loadAnalytics)
         <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3">
           <p class="text-xs uppercase tracking-wide text-slate-400">Nilai Penjualan</p>
           <p class="mt-2 text-2xl font-semibold text-white">
-            Rp{{ (analytics?.totalRevenue ?? 0).toLocaleString('id-ID') }}
+            Rp{{ totals.totalRevenue.toLocaleString('id-ID') }}
           </p>
-          <p class="text-[11px] text-slate-500">Rentang {{ filters.start || '...' }} s.d {{ filters.end || '...' }}</p>
+          <p class="text-[11px] text-slate-500">{{ filters.branch_id ? 'Cabang terpilih' : 'Semua cabang' }}</p>
         </div>
         <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3">
           <p class="text-xs uppercase tracking-wide text-slate-400">Jumlah Order</p>
-          <p class="mt-2 text-2xl font-semibold text-white">{{ analytics?.totalOrders ?? 0 }}</p>
-          <p class="text-[11px] text-slate-500">Transaksi tercatat di SQLite</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ totals.totalOrders }}</p>
+          <p class="text-[11px] text-slate-500">Transaksi tercatat</p>
         </div>
         <div class="rounded-xl border border-white/5 bg-slate-900/70 p-3">
           <p class="text-xs uppercase tracking-wide text-slate-400">Item Terjual</p>
-          <p class="mt-2 text-2xl font-semibold text-white">{{ analytics?.totalItems ?? 0 }}</p>
-          <p class="text-[11px] text-slate-500">Flag synced menunggu upload</p>
+          <p class="mt-2 text-2xl font-semibold text-white">{{ totals.totalItems }}</p>
+          <p class="text-[11px] text-slate-500">Dari {{ filters.branch_id ? 'cabang' : 'semua cabang' }}</p>
         </div>
       </div>
     </Card>

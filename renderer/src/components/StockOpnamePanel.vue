@@ -84,7 +84,7 @@ onMounted(loadProducts)
                 <p class="text-sm font-semibold text-white">
                   {{ products.find((p) => p.id === item.product_id)?.name ?? 'Produk' }}
                 </p>
-                <p class="text-xs text-slate-500">SKU {{ products.find((p) => p.id === item.product_id)?.sku }}</p>
+                <p class="text-xs text-slate-500">{{ products.find((p) => p.id === item.product_id)?.unit }}</p>
               </div>
               <div class="space-y-1">
                 <p class="text-xs text-slate-500">Stok Sistem</p>

@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Backend Sidecar Service (Go + Gin + SQLite)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: shosha_mart_backend
+    expose:
+      - "8080"
+    environment:
+      - POS_DB_PATH=/app/data/offline.db
+      - POS_BIND_ADDR=0.0.0.0:8080
+      - POS_EXPORT_DIR=/app/exports
+      - POS_BRANCH_ID=${POS_BRANCH_ID:-docker-local}
+      - POS_UPSTREAM_URL=${POS_UPSTREAM_URL:-}
+    volumes:
+      # Persist database dan exports
+      - backend_data:/app/data
+      - backend_exports:/app/exports
+    networks:
+      - shosha_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Frontend Service (Vue 3 + Vite)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: shosha_mart_frontend
+    expose:
+      - "3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - shosha_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    environment:
+      # Backend dapat diakses dari frontend via network
+      - VITE_API_BASE=${VITE_API_BASE:-http://backend:8080/api}
+
+  # Optional: PostgreSQL untuk production sync (gunakan saat diperlukan)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: shosha_mart_postgres
+  #   environment:
+  #     - POSTGRES_DB=shosha_mart
+  #     - POSTGRES_USER=${DB_USER:-shosha}
+  #     - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - shosha_network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-shosha}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  backend_data:
+    driver: local
+  backend_exports:
+    driver: local
+  # postgres_data:
+  #   driver: local
+
+networks:
+  shosha_network:
+    driver: bridge

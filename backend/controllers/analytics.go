@@ -49,8 +49,15 @@ func SalesAnalytics(db *gorm.DB) gin.HandlerFunc {
 		var totalOrders int64
 		if err := db.Model(&models.Sale{}).
 			Where("created_at BETWEEN ? AND ?", start, end).
-			Count(&totalOrders).
-			Select("SUM(total)").
+			Count(&totalOrders).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Get total revenue with COALESCE to handle NULL
+		if err := db.Model(&models.Sale{}).
+			Where("created_at BETWEEN ? AND ?", start, end).
+			Select("COALESCE(SUM(total), 0)").
 			Scan(&totalRevenue).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -60,7 +67,7 @@ func SalesAnalytics(db *gorm.DB) gin.HandlerFunc {
 		if err := db.Model(&models.SaleItem{}).
 			Joins("JOIN sales ON sales.id = sale_items.sale_id").
 			Where("sales.created_at BETWEEN ? AND ?", start, end).
-			Select("SUM(qty)").
+			Select("COALESCE(SUM(qty), 0)").
 			Scan(&totalItems).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -68,7 +75,7 @@ func SalesAnalytics(db *gorm.DB) gin.HandlerFunc {
 
 		var perDay []AnalyticsDaily
 		if err := db.Table("sales").
-			Select("strftime('%Y-%m-%d', created_at) as day, COUNT(*) as orders, SUM(total) as revenue").
+			Select("strftime('%Y-%m-%d', created_at) as day, COUNT(*) as orders, COALESCE(SUM(total), 0) as revenue").
 			Where("created_at BETWEEN ? AND ?", start, end).
 			Group("day").
 			Order("day").
@@ -83,7 +90,7 @@ func SalesAnalytics(db *gorm.DB) gin.HandlerFunc {
 			db.Table("sale_items").
 				Joins("JOIN sales ON sales.id = sale_items.sale_id").
 				Where("strftime('%Y-%m-%d', sales.created_at) = ?", perDay[i].Day).
-				Select("SUM(qty)").Scan(&items)
+				Select("COALESCE(SUM(qty), 0)").Scan(&items)
 			perDay[i].Items = items
 		}
 

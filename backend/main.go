@@ -41,7 +41,7 @@ func main() {
 	if cfg.Upstream != "" {
 		upstreamStatus = cfg.Upstream
 	}
-	log.Printf("sidecar listening on %s (db: %s, upstream: %s, sync interval ~%v)", 
+	log.Printf("sidecar listening on %s (db: %s, upstream: %s, sync interval ~%v)",
 		cfg.BindAddr, cfg.DBPath, upstreamStatus, 5*time.Minute)
 	if err := r.Run(cfg.BindAddr); err != nil {
 		log.Fatalf("server error: %v", err)
