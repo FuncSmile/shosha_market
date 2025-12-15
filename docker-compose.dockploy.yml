@@ -53,32 +53,62 @@ services:
       # Backend dapat diakses dari frontend via network
       - VITE_API_BASE=${VITE_API_BASE:-http://backend:8080/api}
 
-  # Optional: PostgreSQL untuk production sync (gunakan saat diperlukan)
-  # postgres:
-  #   image: postgres:16-alpine
-  #   container_name: shosha_mart_postgres
-  #   environment:
-  #     - POSTGRES_DB=shosha_mart
-  #     - POSTGRES_USER=${DB_USER:-shosha}
-  #     - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   networks:
-  #     - shosha_network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-shosha}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  # PostgreSQL untuk upstream service
+  postgres:
+    image: postgres:16-alpine
+    container_name: shosha_mart_postgres
+    environment:
+      - POSTGRES_DB=${DB_NAME:-shosha_mart}
+      - POSTGRES_USER=${DB_USER:-shosha}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - shosha_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-shosha}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Upstream Service (Go + Gin + PostgreSQL)
+  upstream:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: shosha_mart_upstream
+    expose:
+      - "8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-shosha_mart}
+      - DB_USER=${DB_USER:-shosha}
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - SERVER_PORT=8081
+      - GIN_MODE=release
+    networks:
+      - shosha_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    command: sh -c "cd backend/cmd/upstream && go run main.go"
 
 volumes:
   backend_data:
     driver: local
   backend_exports:
     driver: local
-  # postgres_data:
-  #   driver: local
+  postgres_data:
+    driver: local
 
 networks:
   shosha_network:
