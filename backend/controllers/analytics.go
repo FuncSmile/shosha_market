@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"shosha_mart/backend/models"
+	"github.com/FuncSmile/shosha_market/backend/models"
 )
 
 type AnalyticsResponse struct {

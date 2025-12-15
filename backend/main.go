@@ -9,10 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"shosha_mart/backend/config"
-	"shosha_mart/backend/routes"
-	"shosha_mart/backend/services"
-	syncsvc "shosha_mart/backend/sync"
+	"github.com/FuncSmile/shosha_market/backend/config"
+	"github.com/FuncSmile/shosha_market/backend/routes"
+	"github.com/FuncSmile/shosha_market/backend/services"
+	syncsvc "github.com/FuncSmile/shosha_market/backend/sync"
 )
 
 func main() {

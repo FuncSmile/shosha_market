@@ -5,9 +5,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"shosha_mart/backend/config"
-	"shosha_mart/backend/controllers"
-	syncsvc "shosha_mart/backend/sync"
+	"github.com/FuncSmile/shosha_market/backend/config"
+	"github.com/FuncSmile/shosha_market/backend/controllers"
+	syncsvc "github.com/FuncSmile/shosha_market/backend/sync"
 )
 
 func Register(r *gin.Engine, db *gorm.DB, cfg config.AppConfig, worker *syncsvc.Worker) {

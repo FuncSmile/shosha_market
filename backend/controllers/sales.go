@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"shosha_mart/backend/config"
-	"shosha_mart/backend/exports"
-	"shosha_mart/backend/models"
+	"github.com/FuncSmile/shosha_market/backend/config"
+	"github.com/FuncSmile/shosha_market/backend/exports"
+	"github.com/FuncSmile/shosha_market/backend/models"
 )
 
 // CreateSale records a checkout and decrements stock offline-first.
