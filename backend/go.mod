@@ -2,12 +2,15 @@ module github.com/FuncSmile/shosha_market/backend
 
 go 1.23.0
 
+replace github.com/FuncSmile/shosha_market/backend => ./
+
 require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/xuri/excelize/v2 v2.8.1
+	gorm.io/driver/postgres v1.5.9
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12
 )
@@ -52,5 +55,4 @@ require (
 	golang.org/x/text v0.26.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/postgres v1.5.9 // indirect
 )
