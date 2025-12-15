@@ -31,11 +31,8 @@ console.log(`🔨 Building for ${process.platform}...`);
 const buildArgs = ['build', '-o', output, 'main.go'];
 const buildEnv = { ...process.env };
 
-if (isLinux) {
-  buildEnv.CGO_ENABLED = '1';
-} else if (isWindows) {
-  buildEnv.CGO_ENABLED = '0';
-}
+// Enable CGO for all platforms. go-sqlite3 requires CGO.
+buildEnv.CGO_ENABLED = '1';
 
 const result = spawnSync('go', buildArgs, {
   cwd: backendDir,

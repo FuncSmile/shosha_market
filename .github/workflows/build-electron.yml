@@ -122,6 +122,8 @@ jobs:
           ELECTRON_CUSTOM_DIR: v30.0.9
       
       - name: Build backend (Windows)
+        env:
+          CGO_ENABLED: 1
         run: |
           cd backend
           go mod tidy
