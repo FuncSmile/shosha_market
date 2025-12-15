@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import DashboardPanel from './components/DashboardPanel.vue'
 import ProductPanel from './components/ProductPanel.vue'
 import SalesPanel from './components/SalesPanel.vue'
+import OrderHistory from './components/OrderHistory.vue'
 import BranchPanel from './components/BranchPanel.vue'
 import StockOpnamePanel from './components/StockOpnamePanel.vue'
 import ReportsPanel from './components/ReportsPanel.vue'
@@ -13,6 +14,7 @@ const tabs = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'products', label: 'Barang' },
   { key: 'sales', label: 'Penjualan' },
+  { key: 'orders', label: 'History Order' },
   { key: 'branches', label: 'Cabang' },
   { key: 'opname', label: 'Stock Opname' },
   { key: 'reports', label: 'Laporan' },
@@ -23,6 +25,7 @@ const components = {
   dashboard: DashboardPanel,
   products: ProductPanel,
   sales: SalesPanel,
+  orders: OrderHistory,
   branches: BranchPanel,
   opname: StockOpnamePanel,
   reports: ReportsPanel,

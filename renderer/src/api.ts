@@ -1,15 +1,14 @@
 export interface Product {
   id: string
   name: string
-  sku: string
   unit: string
-  quantity: number
   stock: number
   price: number
   synced: boolean
   created_at: string
   updated_at: string
 }
+export type ProductInput = Pick<Product, 'name' | 'unit' | 'stock' | 'price'>
 
 export interface Branch {
   id: string
@@ -36,7 +35,10 @@ export interface SaleItem {
 export interface Sale {
   id: string
   branch_id: string
+  branch_name: string
   receipt_no: string
+  payment_method: string // "cash" or "hutang"
+  notes: string
   total: number
   synced: boolean
   created_at: string
@@ -130,6 +132,15 @@ export const api = {
   updateProduct: (id: string, payload: Partial<Product>) =>
     request<Product>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteProduct: (id: string) => request<void>(`/products/${id}`, { method: 'DELETE' }),
+  async bulkCreateProducts(rows: ProductInput[]): Promise<{ count: number; items: Product[] }> {
+    const res = await fetch(`${API_BASE}/products/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rows)
+    })
+    if (!res.ok) throw new Error(await res.text())
+    return res.json()
+  },
 
   listBranches: () => request<Branch[]>('/branches'),
   createBranch: (payload: Partial<Branch>) =>
@@ -138,8 +149,25 @@ export const api = {
     request<Branch>(`/branches/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteBranch: (id: string) => request<void>(`/branches/${id}`, { method: 'DELETE' }),
 
-  createSale: (payload: { branch_id: string; receipt_no: string; items: { product_id: string; qty: number; price: number }[] }) =>
+  createSale: (payload: { 
+    branch_id: string
+    receipt_no: string
+    payment_method: string
+    notes: string
+    items: { product_id: string; qty: number; price: number }[] 
+  }) =>
     request<Sale>('/sales', { method: 'POST', body: JSON.stringify(payload) }),
+
+  listSales: () => request<Sale[]>('/sales'),
+  getSale: (id: string) => request<Sale>(`/sales/${id}`),
+  
+  exportSales: async () => {
+    const res = await fetch(`${API_BASE}/sales/export`);
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    return url;
+  },
 
   createStockOpname: (payload: { branch_id: string; note: string; items: { product_id: string; qty_system: number; qty_physical: number }[] }) =>
     request('/stock-opname', { method: 'POST', body: JSON.stringify(payload) }),

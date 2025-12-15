@@ -1,60 +1,56 @@
 package controllers
 
 import (
-    "net/http"
+	"net/http"
 
-    "github.com/gin-gonic/gin"
-    "github.com/google/uuid"
-    "gorm.io/gorm"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 
-    "shosha_mart/backend/config"
-    "shosha_mart/backend/models"
+	"shosha_mart/backend/config"
+	"shosha_mart/backend/models"
 )
 
 // ListProducts returns all products ordered by update time.
 func ListProducts(db *gorm.DB) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        var products []models.Product
-        if err := db.Order("updated_at desc").Find(&products).Error; err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-            return
-        }
-        c.JSON(http.StatusOK, products)
-    }
+	return func(c *gin.Context) {
+		var products []models.Product
+		if err := db.Order("updated_at desc").Find(&products).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, products)
+	}
 }
 
 // CreateProduct inserts a new local product record flagged as unsynced.
 func CreateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        var payload struct {
-            Name     string  `json:"name" binding:"required"`
-            SKU      string  `json:"sku"`
-            Unit     string  `json:"unit" binding:"required"`
-            Quantity int     `json:"quantity" binding:"required,gt=0"`
-            Stock    int     `json:"stock"`
-            Price    float64 `json:"price" binding:"required,gt=0"`
-        }
-        if err := c.ShouldBindJSON(&payload); err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-            return
-        }
-        product := models.Product{
-            ID:       uuid.NewString(),
-            Name:     payload.Name,
-            SKU:      payload.SKU,
-            Unit:     payload.Unit,
-            Quantity: payload.Quantity,
-            Stock:    payload.Stock,
-            Price:    payload.Price,
-            Synced:   false,
-            BranchID: cfg.BranchID,
-        }
-        if err := db.Create(&product).Error; err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-            return
-        }
-        c.JSON(http.StatusCreated, product)
-    }
+	return func(c *gin.Context) {
+		var payload struct {
+			Name  string  `json:"name" binding:"required"`
+			Unit  string  `json:"unit" binding:"required"`
+			Stock int     `json:"stock"`
+			Price float64 `json:"price" binding:"required,gt=0"`
+		}
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		product := models.Product{
+			ID:       uuid.NewString(),
+			Name:     payload.Name,
+			Unit:     payload.Unit,
+			Stock:    payload.Stock,
+			Price:    payload.Price,
+			Synced:   false,
+			BranchID: cfg.BranchID,
+		}
+		if err := db.Create(&product).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusCreated, product)
+	}
 }
 
 // UpdateProduct updates an existing product.
@@ -62,12 +58,10 @@ func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		var payload struct {
-			Name     string  `json:"name"`
-			SKU      string  `json:"sku"`
-			Unit     string  `json:"unit"`
-			Quantity int     `json:"quantity"`
-			Stock    int     `json:"stock"`
-			Price    float64 `json:"price"`
+			Name  string  `json:"name"`
+			Unit  string  `json:"unit"`
+			Stock int     `json:"stock"`
+			Price float64 `json:"price"`
 		}
 		if err := c.ShouldBindJSON(&payload); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
@@ -83,13 +77,11 @@ func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 
 		// Update product
 		if err := db.Model(&product).Updates(models.Product{
-			Name:     payload.Name,
-			SKU:      payload.SKU,
-			Unit:     payload.Unit,
-			Quantity: payload.Quantity,
-			Stock:    payload.Stock,
-			Price:    payload.Price,
-			Synced:   false, // Mark as unsynced when updated
+			Name:   payload.Name,
+			Unit:   payload.Unit,
+			Stock:  payload.Stock,
+			Price:  payload.Price,
+			Synced: false, // Mark as unsynced when updated
 		}).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -116,5 +108,40 @@ func DeleteProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"message": "product deleted"})
+	}
+}
+
+// BulkCreateProducts inserts multiple products in one request.
+func BulkCreateProducts(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
+	type Row struct {
+		Name  string  `json:"name" binding:"required"`
+		Unit  string  `json:"unit" binding:"required"`
+		Stock int     `json:"stock"`
+		Price float64 `json:"price" binding:"required,gt=0"`
+	}
+	return func(c *gin.Context) {
+		var rows []Row
+		if err := c.ShouldBindJSON(&rows); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		created := make([]models.Product, 0, len(rows))
+		for _, r := range rows {
+			p := models.Product{
+				ID:       uuid.NewString(),
+				Name:     r.Name,
+				Unit:     r.Unit,
+				Stock:    r.Stock,
+				Price:    r.Price,
+				Synced:   false,
+				BranchID: cfg.BranchID,
+			}
+			if err := db.Create(&p).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			created = append(created, p)
+		}
+		c.JSON(http.StatusCreated, gin.H{"count": len(created), "items": created})
 	}
 }

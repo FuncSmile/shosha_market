@@ -3,21 +3,42 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { api, type Branch, type Product } from '../api'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
-import Select from './ui/Select.vue'
 import Input from './ui/Input.vue'
 import Label from './ui/Label.vue'
+import Select from './ui/Select.vue'
+import BranchSelect from './ui/BranchSelect.vue'
 
 const products = ref<Product[]>([])
 const branches = ref<Branch[]>([])
 const message = ref('')
 const saving = ref(false)
+const searchProduct = ref('')
+const showPrintDialog = ref(false)
+const printData = ref<any>(null)
+
 const form = reactive({
   branch_id: '',
   receipt_no: '',
-  items: [{ product_id: '', qty: 1, price: 0 }],
+  payment_method: 'cash',
+  notes: '',
+  items: [] as { product_id: string; qty: number; price: number }[],
 })
 
 const total = computed(() => form.items.reduce((sum, item) => sum + (item.qty || 0) * (item.price || 0), 0))
+const selectedBranch = computed(() => branches.value.find((b) => b.id === form.branch_id))
+const canEditPrice = computed(() => selectedBranch.value?.code?.toLowerCase() === 'shosha')
+
+const cartItems = computed(() => {
+  return form.items.map((item) => {
+    const product = products.value.find((p) => p.id === item.product_id)
+    return {
+      ...item,
+      name: product?.name || 'Loading...',
+      unit: product?.unit || 'PCS',
+    }
+  })
+})
+
 const isValid = computed(
   () =>
     form.branch_id &&
@@ -25,50 +46,247 @@ const isValid = computed(
     form.items.every((item) => item.product_id && item.qty > 0 && item.price >= 0),
 )
 
+const filteredProducts = computed(() => {
+  if (!searchProduct.value) return products.value
+  const query = searchProduct.value.toLowerCase()
+  return products.value.filter((p) => p.name?.toLowerCase().includes(query))
+})
+
 async function loadProducts() {
   products.value = await api.listProducts()
 }
+
 async function loadBranches() {
   branches.value = await api.listBranches()
-  if (!form.branch_id && branches.value.length) {
-    form.branch_id = branches.value[0].id
+}
+
+function addToCart(product: Product) {
+  const existingItem = form.items.find((item) => item.product_id === product.id)
+  if (existingItem) {
+    existingItem.qty++
+  } else {
+    form.items.push({
+      product_id: product.id,
+      qty: 1,
+      price: product.price,
+    })
   }
 }
 
-function addRow() {
-  form.items.push({ product_id: '', qty: 1, price: 0 })
-}
-
-function removeRow(idx: number) {
+function removeItem(idx: number) {
   form.items.splice(idx, 1)
 }
 
-function setDefaults(idx: number) {
-  const item = form.items[idx]
-  const product = products.value.find((p) => p.id === item.product_id)
-  if (product) {
-    if (!item.price || item.price === 0) item.price = product.price
-    if (!item.qty || item.qty <= 0) item.qty = 1
+function updateQty(idx: number, delta: number) {
+  const newQty = (form.items[idx]?.qty || 0) + delta
+  if (newQty > 0) {
+    form.items[idx].qty = newQty
+  } else {
+    removeItem(idx)
   }
+}
+
+function getProductName(productId: string): string {
+  return products.value.find((p) => p.id === productId)?.name || 'Unknown'
+}
+
+function getProductUnit(productId: string): string {
+  return products.value.find((p) => p.id === productId)?.unit || 'PCS'
 }
 
 async function submit() {
   if (!isValid.value) {
-    message.value = 'Lengkapi cabang, pilih barang, qty > 0.'
+    message.value = 'Lengkapi cabang dan pilih minimal 1 barang!'
     return
   }
   saving.value = true
   message.value = ''
   try {
-    await api.createSale(form)
-    message.value = 'Transaksi tersimpan offline.'
+    const sale = await api.createSale({
+      branch_id: form.branch_id,
+      receipt_no: form.receipt_no || `INV-${Date.now()}`,
+      payment_method: form.payment_method,
+      notes: form.notes,
+      items: form.items,
+    })
+    
+    message.value = 'Transaksi berhasil disimpan!'
+    
+    // Prepare print data
+    printData.value = {
+      ...sale,
+      branch: selectedBranch.value,
+      items: form.items.map(item => ({
+        ...item,
+        name: getProductName(item.product_id),
+        unit: getProductUnit(item.product_id),
+        subtotal: item.qty * item.price,
+      })),
+    }
+    
+    // Show print dialog
+    showPrintDialog.value = true
+    
+    // Reset form
     form.receipt_no = ''
-    form.items = [{ product_id: '', qty: 1, price: 0 }]
+    form.payment_method = 'cash'
+    form.notes = ''
+    form.items = []
   } catch (err) {
     message.value = (err as Error).message
   } finally {
     saving.value = false
   }
+}
+
+function printReceipt() {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+  
+  const isHutang = printData.value.payment_method === 'hutang'
+  const txDate = printData.value.created_at ? new Date(printData.value.created_at) : new Date()
+  const date = txDate.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+  const customerName = (printData.value.notes || '').trim() || '-'
+  const cashierName = 'Fadli'
+  
+  let itemsHtml = ''
+  printData.value.items.forEach((item: any, idx: number) => {
+    itemsHtml += `
+      <tr>
+        <td style="text-align: center;">${idx + 1}</td>
+        <td>${item.name}</td>
+        <td style="text-align: center;">${item.qty}</td>
+        <td style="text-align: center;">${item.unit}</td>
+        <td style="text-align: right;">Rp ${item.price.toLocaleString('id-ID')}</td>
+        <td style="text-align: right;">Rp ${item.subtotal.toLocaleString('id-ID')}</td>
+        <td></td>
+      </tr>
+    `
+  })
+  const grandTotal = printData.value.items.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>${isHutang ? 'Surat Jalan' : 'Struk Pembayaran'}</title>
+      <style>
+        @page { size: A4; margin: 20mm; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 18pt; }
+        .info { margin-bottom: 15px; }
+        .info table { width: 100%; }
+        .info td { padding: 3px 0; }
+        .info td:first-child { width: 100px; font-weight: bold; }
+        table.items { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table.items th, table.items td { border: 1px solid #000; padding: 5px; }
+        table.items th { background: #f0f0f0; font-weight: bold; }
+        .total { margin-top: 10px; text-align: right; font-size: 12pt; }
+        .footer { margin-top: 40px; }
+        .footer table { width: 100%; }
+        .footer td { text-align: center; padding-top: 60px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>SHO SHA MART</h1>
+      </div>
+      
+      <div class="info">
+        <table>
+          <tr>
+            <td>NAMA</td>
+            <td>: ${printData.value.branch?.name || '-'}</td>
+          </tr>
+          <tr>
+            <td>TANGGAL</td>
+            <td>: ${date}</td>
+          </tr>
+          <tr>
+            <td>ALAMAT</td>
+            <td>: ${printData.value.branch?.address || '-'}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <table class="items">
+        <thead>
+          <tr>
+            <th style="width: 30px;">NO</th>
+            <th>PESANAN</th>
+            <th style="width: 50px;">QTY</th>
+            <th style="width: 50px;">SATUAN</th>
+            <th style="width: 90px;">HARGA</th>
+            <th style="width: 90px;">JUMLAH</th>
+            <th style="width: 100px;">KET</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+          <tr>
+            <td colspan="4"></td>
+            <td></td>
+            <td style="text-align: right; font-weight: bold;">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="footer">
+        ${isHutang ? `
+          <table style="margin-top: 15px; width: 100%;">
+            <tr>
+              <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+                <p>CATATAN/KETERANGAN :</p>
+                <p>${printData.value.notes || '-'}</p>
+              </td>
+              <td style="width: 25%; text-align: center;">
+                <p>PELANGGAN</p>
+                <p style="margin-top: 60px; border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 120px;">
+                  ${customerName}
+                </p>
+              </td>
+              <td style="width: 25%; text-align: center;">
+                <p>SHO-SHA MART</p>
+                <p style="margin-top: 60px; border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 120px;">
+                  ${cashierName}
+                </p>
+              </td>
+            </tr>
+          </table>
+        ` : `
+          <p style="text-align: center; margin-top: 30px; font-size: 14pt; font-weight: bold;">
+            TERIMA KASIH
+          </p>
+          <p style="text-align: center; margin-top: 10px; font-size: 10pt;">
+            No. Invoice: ${printData.value.receipt_no || 'Auto-generated'}
+          </p>
+        `}
+      </div>
+      
+      <script type="text/javascript">
+        window.onload = function() {
+          window.print();
+          window.onafterprint = function() { window.close(); };
+        };
+      <\/script>
+    </body>
+    </html>
+  `
+  
+  printWindow.document.write(html)
+  printWindow.document.close()
+}
+
+function closePrintDialog() {
+  showPrintDialog.value = false
+  printData.value = null
 }
 
 onMounted(async () => {
@@ -81,64 +299,231 @@ onMounted(async () => {
     <header class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
       <div>
         <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Penjualan</p>
-        <h2 class="text-2xl font-semibold text-white">Checkout offline, sync nanti</h2>
+        <h2 class="text-2xl font-semibold text-white">Point of Sale (POS)</h2>
       </div>
-      <span v-if="message" class="rounded-lg bg-emerald-500/20 px-3 py-1 text-sm text-emerald-100">{{ message }}</span>
+      <span
+        v-if="message"
+        :class="message.includes('berhasil') ? 'bg-emerald-500/20 text-emerald-100' : 'bg-rose-500/20 text-rose-100'"
+        class="rounded-lg px-3 py-1 text-sm"
+      >
+        {{ message }}
+      </span>
     </header>
 
-    <Card>
-      <form class="space-y-4 p-4" @submit.prevent="submit">
-        <div class="grid gap-3 sm:grid-cols-3">
+    <div class="grid gap-4 lg:grid-cols-[1fr_400px]">
+      <!-- Left: Product Selection -->
+      <Card>
+        <div class="p-4 space-y-4">
+          <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">1. PILIH BARANG & TENTUKAN QTY</p>
+
+          <!-- Search Products -->
           <div class="space-y-1">
-            <Label>Cabang</Label>
-            <Select v-model="form.branch_id" required>
-              <option value="" disabled>Pilih cabang</option>
-              <option v-for="branch in branches" :key="branch.id" :value="branch.id">
-                {{ branch.name }} ({{ branch.id || branch.code }})
-              </option>
-            </Select>
+            <Label>Cari Barang</Label>
+            <Input
+              v-model="searchProduct"
+              placeholder="Ketik nama barang..."
+              type="search"
+            />
           </div>
-          <div class="space-y-1">
-            <Label>No Nota</Label>
-            <Input v-model="form.receipt_no" required />
-          </div>
-          <div class="space-y-1">
-            <Label>Total</Label>
-            <div class="rounded-lg bg-slate-800/70 px-3 py-2 text-sm font-semibold text-emerald-100 ring-1 ring-white/10">
-              Rp{{ total.toLocaleString('id-ID') }}
+
+          <!-- Product List -->
+          <div class="grid gap-2 max-h-96 overflow-y-auto">
+            <div
+              v-for="product in filteredProducts"
+              :key="product.id"
+              class="flex items-center justify-between rounded-lg bg-slate-800/60 p-3 ring-1 ring-white/10 hover:ring-emerald-400/50 transition-all cursor-pointer"
+              @click="addToCart(product)"
+            >
+              <div>
+                <p class="text-sm font-semibold text-white">{{ product.name }}</p>
+                <p class="text-xs text-slate-400">
+                  Stok: {{ product.stock }} {{ product.unit }} • Rp{{ product.price.toLocaleString('id-ID') }}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" class="text-emerald-200">+ Tambah</Button>
+            </div>
+            <div v-if="filteredProducts.length === 0" class="text-center py-4 text-sm text-slate-400">
+              {{ searchProduct ? 'Barang tidak ditemukan' : 'Cari barang untuk menambahkan ke keranjang' }}
             </div>
           </div>
         </div>
+      </Card>
 
-        <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <p class="text-sm text-slate-300">Item</p>
-              <Button variant="ghost" type="button" class="px-3 py-1" @click="addRow">Tambah baris</Button>
+      <!-- Right: Cart & Checkout -->
+      <div class="space-y-4">
+        <!-- Step 2: Branch Selection -->
+        <Card>
+          <div class="p-4 space-y-3">
+            <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">2. PILIH CABANG PEMBELI</p>
+            <div class="space-y-1">
+              <Label>Cabang</Label>
+              <BranchSelect v-model="form.branch_id" :branches="branches" />
             </div>
-            <div class="space-y-2">
+            <div v-if="selectedBranch" class="text-xs text-slate-400">
+              <p>Kode: {{ selectedBranch.code }}</p>
+              <p v-if="canEditPrice" class="text-emerald-400">✓ Harga dapat diubah (cabang SHOSHA)</p>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Cart Items -->
+        <Card>
+          <div class="p-4 space-y-4">
+            <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">KERANJANG BELANJA</p>
+
+            <div class="space-y-2 max-h-64 overflow-y-auto">
               <div
-                v-for="(item, idx) in form.items"
+                v-for="(item, idx) in cartItems"
                 :key="idx"
-                class="grid gap-2 rounded-xl bg-slate-800/60 p-3 ring-1 ring-white/10 sm:grid-cols-[1.4fr_1fr_1fr_auto]"
+                class="flex flex-col gap-2 rounded-lg bg-slate-800/60 p-2 ring-1 ring-white/10"
               >
-                <Select v-model="item.product_id" required @change="setDefaults(idx)">
-                  <option value="" disabled>Pilih barang</option>
-                  <option v-for="product in products" :key="product.id" :value="product.id">
-                    {{ product.name }} (Stok {{ product.stock }})
-                  </option>
-                </Select>
-                <Input v-model="item.qty" type="number" min="1" />
-                <Input v-model="item.price" type="number" min="0" step="100" />
-                <Button type="button" variant="ghost" class="text-rose-200" @click="removeRow(idx)">Hapus</Button>
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <p class="text-sm text-white font-semibold">{{ item.name }}</p>
+                    <p class="text-xs text-slate-400">{{ item.unit }}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="text-rose-400"
+                    @click="removeItem(idx)"
+                  >
+                    ✕
+                  </Button>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="h-6 w-6 p-0 text-slate-400"
+                      @click="updateQty(idx, -1)"
+                    >
+                      −
+                    </Button>
+                    <input
+                      :value="item.qty"
+                      type="number"
+                      min="1"
+                      class="w-14 h-6 bg-slate-700 text-center text-white text-xs rounded border border-slate-600"
+                      @change="form.items[idx].qty = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="h-6 w-6 p-0 text-slate-400"
+                      @click="updateQty(idx, 1)"
+                    >
+                      +
+                    </Button>
+                  </div>
+                  
+                  <div class="flex-1">
+                    <input
+                      v-model.number="form.items[idx].price"
+                      type="number"
+                      :disabled="!canEditPrice"
+                      :class="canEditPrice ? 'bg-slate-700' : 'bg-slate-800/50 opacity-60'"
+                      class="w-full h-6 text-right text-white text-xs rounded border border-slate-600 px-2"
+                      min="0"
+                      step="100"
+                    />
+                  </div>
+                </div>
+                
+                <div class="text-right text-xs text-emerald-400 font-semibold">
+                  = Rp{{ (item.qty * item.price).toLocaleString('id-ID') }}
+                </div>
+              </div>
+              
+              <div v-if="form.items.length === 0" class="text-center py-6 text-sm text-slate-400">
+                Keranjang kosong
+              </div>
+            </div>
+
+            <!-- Total -->
+            <div class="border-t border-slate-700 pt-3">
+              <div class="flex items-center justify-between text-lg">
+                <span class="text-white font-bold">TOTAL</span>
+                <span class="text-emerald-400 font-bold">Rp{{ total.toLocaleString('id-ID') }}</span>
               </div>
             </div>
           </div>
+        </Card>
 
-        <div class="flex items-center gap-3">
-          <Button type="submit" :disabled="saving || !isValid">Simpan transaksi</Button>
-          <p class="text-xs text-slate-400">Disimpan ke SQLite. Flag synced=false untuk antrean upload.</p>
+        <!-- Step 3: Payment Method -->
+        <Card>
+          <div class="p-4 space-y-3">
+            <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">3. PILIH METODE PEMBAYARAN</p>
+            
+            <div class="space-y-1">
+              <Label>Metode Pembayaran</Label>
+              <Select v-model="form.payment_method">
+                <option value="cash">Cash (Tunai)</option>
+                <option value="hutang">Hutang</option>
+              </Select>
+            </div>
+
+            <div class="space-y-1">
+              <Label>No. Invoice (Opsional)</Label>
+              <Input v-model="form.receipt_no" placeholder="Auto-generate" />
+            </div>
+
+            <div v-if="form.payment_method === 'hutang'" class="space-y-1">
+              <Label>Catatan (Opsional)</Label>
+              <textarea
+                v-model="form.notes"
+                rows="2"
+                placeholder="Catatan tambahan..."
+                class="w-full rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400"
+              />
+            </div>
+
+            <!-- Checkout Button -->
+            <div class="space-y-2 pt-2">
+              <Button
+                :disabled="saving || !isValid"
+                class="w-full"
+                @click="submit"
+              >
+                {{ saving ? 'Menyimpan...' : 'Checkout & Cetak' }}
+              </Button>
+              <Button
+                variant="ghost"
+                class="w-full text-slate-400"
+                @click="form.items = []"
+              >
+                Bersihkan Keranjang
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+
+    <!-- Print Dialog -->
+    <div
+      v-if="showPrintDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click="closePrintDialog"
+    >
+      <Card class="max-w-md" @click.stop>
+        <div class="p-6 space-y-4">
+          <h3 class="text-lg font-semibold text-white">Transaksi Berhasil!</h3>
+          <p class="text-sm text-slate-300">
+            {{ printData?.payment_method === 'hutang' ? 'Surat jalan siap dicetak' : 'Struk pembayaran siap dicetak' }}
+          </p>
+          <div class="flex gap-2">
+            <Button class="flex-1" @click="printReceipt">
+              Cetak {{ printData?.payment_method === 'hutang' ? 'Surat Jalan' : 'Struk' }}
+            </Button>
+            <Button variant="ghost" @click="closePrintDialog">
+              Tutup
+            </Button>
+          </div>
         </div>
-      </form>
-    </Card>
+      </Card>
+    </div>
   </section>
 </template>
