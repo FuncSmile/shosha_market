@@ -97,13 +97,17 @@ jobs:
           go-version: '1.23'
           cache-dependency-path: backend/go.sum
       
-      - name: Install dependencies (with retry)
+      - name: Install renderer dependencies
+        working-directory: renderer
+        run: npm install
+
+      - name: Install electron-main dependencies (with retry)
         shell: pwsh
+        working-directory: electron-main
         run: |
-          npm install --prefix renderer
           $retries = 0
           do {
-            npm install --prefix electron-main
+            npm install
             if ($LASTEXITCODE -eq 0) { break }
             $retries++
             Write-Host "Retry $retries/3 for electron-main npm install..."
