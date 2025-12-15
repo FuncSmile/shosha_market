@@ -9,8 +9,8 @@ import (
     "github.com/xuri/excelize/v2"
     "gorm.io/gorm"
 
-    "shosha_mart/backend/config"
-    "shosha_mart/backend/models"
+    "github.com/FuncSmile/shosha_market/backend/config"
+    "github.com/FuncSmile/shosha_market/backend/models"
 )
 
 // GenerateSalesReport builds an Excel export for sales between start/end.

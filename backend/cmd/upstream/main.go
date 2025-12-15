@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"shosha_mart/backend/models"
+	"github.com/FuncSmile/shosha_market/backend/models"
 )
 
 type UploadPayload struct {

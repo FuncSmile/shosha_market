@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"shosha_mart/backend/config"
-	"shosha_mart/backend/models"
+	"github.com/FuncSmile/shosha_market/backend/config"
+	"github.com/FuncSmile/shosha_market/backend/models"
 )
 
 // ListProducts returns all products ordered by update time.

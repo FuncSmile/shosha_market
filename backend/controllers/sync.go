@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"shosha_mart/backend/config"
-	syncsvc "shosha_mart/backend/sync"
+	"github.com/FuncSmile/shosha_market/backend/config"
+	syncsvc "github.com/FuncSmile/shosha_market/backend/sync"
 )
 
 func SyncSummary(db *gorm.DB, cfg config.AppConfig, worker *syncsvc.Worker) gin.HandlerFunc {
