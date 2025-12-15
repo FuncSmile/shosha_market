@@ -15,7 +15,7 @@ services:
       - POS_BIND_ADDR=0.0.0.0:8080
       - POS_EXPORT_DIR=/app/backend/exports
       - POS_BRANCH_ID=docker-dev
-      - POS_UPSTREAM_URL=https://shoshamart-backend-m4yvez-fd130a-118-98-104-102.traefik.me
+      - POS_UPSTREAM_URL=http://upstream-dev:8081
     networks:
       - shosha_network_dev
     command: >
@@ -59,12 +59,8 @@ services:
       postgres-dev:
         condition: service_healthy
     environment:
-      - DB_HOST=postgres-dev
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-shosha_mart}
-      - DB_USER=${DB_USER:-shosha}
-      - DB_PASSWORD=${DB_PASSWORD:-changeme}
-      - SERVER_PORT=8081
+      - PG_DSN=host=postgres-dev user=${DB_USER:-shosha} password=${DB_PASSWORD:-changeme} dbname=${DB_NAME:-shosha_mart} port=5432 sslmode=disable
+      - UPSTREAM_BIND=0.0.0.0:8081
       - GIN_MODE=debug
     networks:
       - shosha_network_dev
