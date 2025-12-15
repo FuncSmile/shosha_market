@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api, type Sale, type SaleItem } from '../api'
+import { api, type Sale, type SaleItem, type Product, type Branch } from '../api'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 
@@ -11,7 +11,14 @@ const exporting = ref(false)
 
 const showDetail = ref(false)
 const selected: any = ref<Sale | null>(null)
-const items = ref<SaleItem[]>([])
+type AugmentedItem = SaleItem & { name?: string; unit?: string; subtotal?: number }
+const items = ref<AugmentedItem[]>([])
+
+const products = ref<Product[]>([])
+const branches = ref<Branch[]>([])
+
+const showPrintDialog = ref(false)
+const printData = ref<any>(null)
 
 async function load() {
   loading.value = true
@@ -29,8 +36,11 @@ async function openDetail(id: string) {
   try {
     const sale = await api.getSale(id)
     selected.value = sale
+    const productMap = Object.fromEntries(products.value.map(p => [p.id, p]))
     items.value = (sale.items || []).map(i => ({
       ...i,
+      name: productMap[i.product_id]?.name || i.product_id,
+      unit: productMap[i.product_id]?.unit || 'PCS',
       subtotal: i.qty * i.price,
     }))
     showDetail.value = true
@@ -64,6 +74,161 @@ async function exportData() {
   }
 }
 
+function preparePrint() {
+  if (!selected.value) return
+  const branchMap = Object.fromEntries(branches.value.map(b => [b.id, b]))
+  printData.value = {
+    ...selected.value,
+    branch: branchMap[selected.value.branch_id] || { name: selected.value.branch_name, address: '' },
+    items: items.value,
+  }
+  showPrintDialog.value = true
+  printReceipt()
+}
+
+function printReceipt() {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow || !printData.value) return
+
+  const isHutang = printData.value.payment_method === 'hutang'
+  const txDate = printData.value.created_at ? new Date(printData.value.created_at) : new Date()
+  const date = txDate.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+  const customerName = (printData.value.notes || '').trim() || '-'
+  const cashierName = 'SHOSHA MART'
+
+  let itemsHtml = ''
+  printData.value.items.forEach((item: any, idx: number) => {
+    itemsHtml += `
+      <tr>
+        <td style="text-align: center;">${idx + 1}</td>
+        <td>${item.name || item.product_id}</td>
+        <td style="text-align: center;">${item.qty}</td>
+        <td style="text-align: center;">${item.unit || 'PCS'}</td>
+        <td style="text-align: right;">Rp ${Number(item.price || 0).toLocaleString('id-ID')}</td>
+        <td style="text-align: right;">Rp ${Number(item.subtotal || 0).toLocaleString('id-ID')}</td>
+        <td></td>
+      </tr>
+    `
+  })
+  const grandTotal = printData.value.items.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>${isHutang ? 'Surat Jalan' : 'Struk Pembayaran'}</title>
+      <style>
+        @page { size: A4; margin: 20mm; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 18pt; }
+        .info { margin-bottom: 15px; }
+        .info table { width: 100%; }
+        .info td { padding: 3px 0; }
+        .info td:first-child { width: 100px; font-weight: bold; }
+        table.items { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table.items th, table.items td { border: 1px solid #000; padding: 5px; }
+        table.items th { background: #f0f0f0; font-weight: bold; }
+        .footer { margin-top: 40px; }
+        .footer table { width: 100%; }
+        .footer td { text-align: center; padding-top: 60px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>SHO SHA MART</h1>
+      </div>
+      
+      <div class="info">
+        <table>
+          <tr>
+            <td>NAMA</td>
+            <td>: ${printData.value.branch?.name || '-'}</td>
+          </tr>
+          <tr>
+            <td>TANGGAL</td>
+            <td>: ${date}</td>
+          </tr>
+          <tr>
+            <td>ALAMAT</td>
+            <td>: ${printData.value.branch?.address || '-'}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <table class="items">
+        <thead>
+          <tr>
+            <th style="width: 30px;">NO</th>
+            <th>PESANAN</th>
+            <th style="width: 50px;">QTY</th>
+            <th style="width: 50px;">SATUAN</th>
+            <th style="width: 90px;">HARGA</th>
+            <th style="width: 90px;">JUMLAH</th>
+            <th style="width: 100px;">KET</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+          <tr>
+            <td colspan="4"></td>
+            <td></td>
+            <td style="text-align: right; font-weight: bold;">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="footer">
+        ${isHutang ? `
+          <table style="margin-top: 15px; width: 100%;">
+            <tr>
+              <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+                <p>CATATAN/KETERANGAN :</p>
+                <p>${printData.value.notes || '-'}</p>
+              </td>
+              <td style="width: 25%; text-align: center;">
+                <p>PELANGGAN</p>
+                <p style="margin-top: 60px; border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 120px;">
+                  ${customerName}
+                </p>
+              </td>
+              <td style="width: 25%; text-align: center;">
+                <p>SHO-SHA MART</p>
+                <p style="margin-top: 60px; border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 120px;">
+                  ${cashierName}
+                </p>
+              </td>
+            </tr>
+          </table>
+        ` : `
+          <p style="text-align: center; margin-top: 30px; font-size: 14pt; font-weight: bold;">
+            TERIMA KASIH
+          </p>
+          <p style="text-align: center; margin-top: 10px; font-size: 10pt;">
+            No. Invoice: ${printData.value.receipt_no || 'Auto-generated'}
+          </p>
+        `}
+      </div>
+      
+      <script type="text/javascript">
+        window.onload = function() {
+          window.print();
+          window.onafterprint = function() { window.close(); };
+        };
+      <\/script>
+    </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+}
+
 function fmtCurrency(n: number) {
   return `Rp ${Number(n || 0).toLocaleString('id-ID')}`
 }
@@ -73,7 +238,9 @@ function fmtDate(s: string) {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-onMounted(load)
+onMounted(async () => {
+  await Promise.all([load(), api.listProducts().then(p => products.value = p), api.listBranches().then(b => branches.value = b)])
+})
 </script>
 
 <template>
@@ -160,7 +327,7 @@ onMounted(load)
               <tbody>
                 <tr v-for="(it, i) in items" :key="it.id" class="border border-slate-700">
                   <td class="px-3 py-2">{{ i + 1 }}</td>
-                  <td class="px-3 py-2">{{ it.product_id }}</td>
+                  <td class="px-3 py-2">{{ it.name || it.product_id }}</td>
                   <td class="px-3 py-2">{{ it.qty }}</td>
                   <td class="px-3 py-2">{{ fmtCurrency(it.price) }}</td>
                   <td class="px-3 py-2 text-right">{{ fmtCurrency(it.subtotal) }}</td>
@@ -171,6 +338,11 @@ onMounted(load)
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <Button variant="outline" @click="preparePrint">Cetak Struk/Surat Jalan</Button>
+            <Button variant="ghost" @click="closeDetail">Tutup</Button>
           </div>
         </div>
       </Card>

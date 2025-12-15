@@ -17,7 +17,7 @@
     "dist:win": "npm run prebuild && npm run build:renderer && electron-builder --win nsis"
   },
   "devDependencies": {
-    "electron": "^30.0.9",
+    "electron": "30.0.9",
     "electron-builder": "^24.11.0"
   },
   "build": {

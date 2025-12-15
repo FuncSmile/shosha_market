@@ -21,10 +21,15 @@ const form = reactive({
   receipt_no: '',
   payment_method: 'cash',
   notes: '',
+  jumlah_bayar: 0,
   items: [] as { product_id: string; qty: number; price: number }[],
 })
 
 const total = computed(() => form.items.reduce((sum, item) => sum + (item.qty || 0) * (item.price || 0), 0))
+const kembalian = computed(() => {
+  if (form.payment_method !== 'cash') return 0
+  return Math.max(0, form.jumlah_bayar - total.value)
+})
 const selectedBranch = computed(() => branches.value.find((b) => b.id === form.branch_id))
 const canEditPrice = computed(() => selectedBranch.value?.code?.toLowerCase() === 'shosha')
 
@@ -43,7 +48,8 @@ const isValid = computed(
   () =>
     form.branch_id &&
     form.items.length > 0 &&
-    form.items.every((item) => item.product_id && item.qty > 0 && item.price >= 0),
+    form.items.every((item) => item.product_id && item.qty > 0 && item.price >= 0) &&
+    (form.payment_method === 'hutang' || form.jumlah_bayar >= total.value),
 )
 
 const filteredProducts = computed(() => {
@@ -463,6 +469,26 @@ onMounted(async () => {
                 <option value="cash">Cash (Tunai)</option>
                 <option value="hutang">Hutang</option>
               </Select>
+            </div>
+
+            <!-- Cash Payment Amount (only show if payment_method is 'cash') -->
+            <div v-if="form.payment_method === 'cash'" class="space-y-1">
+              <Label>Jumlah Bayar</Label>
+              <Input
+                v-model.number="form.jumlah_bayar"
+                type="number"
+                placeholder="0"
+                min="0"
+                step="1000"
+              />
+            </div>
+
+            <!-- Change Display (only show if payment_method is 'cash' and payment is valid) -->
+            <div v-if="form.payment_method === 'cash'" class="rounded-lg bg-emerald-500/10 border border-emerald-400/30 p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-emerald-200">Kembalian</span>
+                <span class="text-lg font-bold text-emerald-400">Rp{{ kembalian.toLocaleString('id-ID') }}</span>
+              </div>
             </div>
 
             <div class="space-y-1">
