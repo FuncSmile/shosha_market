@@ -9,7 +9,8 @@ renderer/.vite
 
 # Go
 /backend/offline.db
-/backend/exports
+/backend/exports/*.xlsx
+/backend/exports/*.xls
 /backend/server
 /backend/server.exe
 /backend/*.log

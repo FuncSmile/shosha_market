@@ -1,4 +1,4 @@
-module github.com/FuncSmile/shosha_market/backend
+module shosha_mart_backend
 
 go 1.23.0
 

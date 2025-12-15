@@ -27,16 +27,30 @@ jobs:
           go-version: '1.23'
           cache-dependency-path: backend/go.sum
       
-      - name: Install dependencies
+      - name: Install dependencies (with retry)
         run: |
-          cd renderer && npm install
-          cd ../electron-main && npm install
+          npm --prefix renderer install
+          n=0
+          until [ $n -ge 3 ]; do
+            npm --prefix electron-main install && break
+            n=$((n+1))
+            echo "Retry $n/3 for electron-main npm install..."
+            sleep 20
+          done
+          if [ $n -ge 3 ]; then
+            echo "electron-main npm install failed after retries"
+            exit 1
+          fi
+        env:
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+          ELECTRON_CUSTOM_DIR: v30.0.9
       
       - name: Build backend
         run: |
           cd backend
+          go mod tidy
           go mod download
-          CGO_ENABLED=1 go build -o server main.go
+          CGO_ENABLED=1 go build -o server .
       
       - name: Prepare electron resources
         run: |
@@ -83,18 +97,32 @@ jobs:
           go-version: '1.23'
           cache-dependency-path: backend/go.sum
       
-      - name: Install dependencies
+      - name: Install dependencies (with retry)
+        shell: pwsh
         run: |
-          cd renderer
-          npm install
-          cd ..\electron-main
-          npm install
+          npm install --prefix renderer
+          $retries = 0
+          do {
+            npm install --prefix electron-main
+            if ($LASTEXITCODE -eq 0) { break }
+            $retries++
+            Write-Host "Retry $retries/3 for electron-main npm install..."
+            Start-Sleep -Seconds 20
+          } while ($retries -lt 3)
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "electron-main npm install failed after retries"
+            exit 1
+          }
+        env:
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+          ELECTRON_CUSTOM_DIR: v30.0.9
       
       - name: Build backend (Windows)
         run: |
           cd backend
+          go mod tidy
           go mod download
-          go build -o server.exe main.go
+          go build -o server.exe .
       
       - name: Prepare electron resources
         run: |
@@ -151,8 +179,9 @@ jobs:
       - name: Build backend (macOS)
         run: |
           cd backend
+          go mod tidy
           go mod download
-          go build -o server main.go
+          go build -o server .
       
       - name: Prepare electron resources
         run: |

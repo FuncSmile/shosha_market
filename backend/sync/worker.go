@@ -14,8 +14,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/FuncSmile/shosha_market/backend/config"
-	"github.com/FuncSmile/shosha_market/backend/models"
+	"shosha_mart_backend/config"
+	"shosha_mart_backend/models"
 )
 
 type Worker struct {

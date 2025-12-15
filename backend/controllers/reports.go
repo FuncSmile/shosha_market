@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/FuncSmile/shosha_market/backend/config"
-	"github.com/FuncSmile/shosha_market/backend/reports"
+	"shosha_mart_backend/config"
+	"shosha_mart_backend/reports"
 )
 
 // SalesReport generates and returns the filepath for the requested period.

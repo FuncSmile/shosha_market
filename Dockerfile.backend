@@ -23,7 +23,7 @@ FROM alpine:3.19
 WORKDIR /app
 
 # Install sqlite runtime dependencies
-RUN apk add --no-cache libsqlite3 ca-certificates
+RUN apk add --no-cache sqlite-libs ca-certificates
 
 # Copy binary dari builder
 COPY --from=builder /build/server .

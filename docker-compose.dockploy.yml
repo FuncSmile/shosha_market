@@ -14,7 +14,7 @@ services:
       - POS_BIND_ADDR=0.0.0.0:8080
       - POS_EXPORT_DIR=/app/exports
       - POS_BRANCH_ID=${POS_BRANCH_ID:-docker-local}
-      - POS_UPSTREAM_URL=${POS_UPSTREAM_URL:-}
+      - POS_UPSTREAM_URL=${POS_UPSTREAM_URL:-https://shoshamart-backend-m4yvez-fd130a-118-98-104-102.traefik.me}
     volumes:
       # Persist database dan exports
       - backend_data:/app/data

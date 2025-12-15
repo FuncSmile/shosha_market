@@ -15,6 +15,7 @@ services:
       - POS_BIND_ADDR=0.0.0.0:8080
       - POS_EXPORT_DIR=/app/backend/exports
       - POS_BRANCH_ID=docker-dev
+      - POS_UPSTREAM_URL=https://shoshamart-backend-m4yvez-fd130a-118-98-104-102.traefik.me
     networks:
       - shosha_network_dev
     command: >
