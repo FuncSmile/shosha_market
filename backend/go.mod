@@ -2,6 +2,9 @@ module github.com/FuncSmile/shosha_market/backend
 
 go 1.23.0
 
+// Prevent Go from trying to fetch from GitHub
+replace github.com/FuncSmile/shosha_market/backend => ./
+
 require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
