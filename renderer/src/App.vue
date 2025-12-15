@@ -8,6 +8,7 @@ import BranchPanel from './components/BranchPanel.vue'
 import StockOpnamePanel from './components/StockOpnamePanel.vue'
 import ReportsPanel from './components/ReportsPanel.vue'
 import { api, type SyncSummary } from './api'
+import SyncPanel from './components/SyncPanel.vue'
 import Button from './components/ui/Button.vue'
 
 const tabs = [
@@ -119,8 +120,11 @@ onUnmounted(() => {
         </div>
       </header>
 
-      <div class="rounded-2xl border border-white/5 bg-slate-900/60 p-6 shadow-xl shadow-emerald-500/5">
-        <component :is="current" @navigate="go" />
+      <div class="space-y-6">
+        <SyncPanel />
+        <div class="rounded-2xl border border-white/5 bg-slate-900/60 p-6 shadow-xl shadow-emerald-500/5">
+          <component :is="current" @navigate="go" />
+        </div>
       </div>
     </main>
   </div>
