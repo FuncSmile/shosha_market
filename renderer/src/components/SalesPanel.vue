@@ -183,26 +183,21 @@ function printReceipt() {
       <title>${isHutang ? 'Surat Jalan' : 'Struk Pembayaran'}</title>
       <style>
         * { margin: 0; padding: 0; }
-        @page { size: A4; margin: 15mm; }
+        @page { size: A4; margin: 12mm; }
         body { 
           font-family: Arial, sans-serif; 
           font-size: 10pt;
-          display: flex;
-          flex-direction: column;
-          min-height: 100vh;
         }
-        .container { display: flex; flex-direction: column; flex: 1; }
-        .header { text-align: center; margin-bottom: 10px; }
+        .header { text-align: center; margin-bottom: 8px; }
         .header h1 { margin: 0; font-size: 16pt; font-weight: bold; }
-        .info { margin-bottom: 8px; }
+        .info { margin-bottom: 6px; }
         .info table { width: 100%; border-collapse: collapse; }
         .info td { padding: 2px 0; font-size: 9pt; }
         .info td:first-child { width: 80px; font-weight: bold; }
         table.items { 
           width: 100%; 
           border-collapse: collapse; 
-          margin: 8px 0;
-          flex-shrink: 0;
+          margin: 6px 0;
         }
         table.items th { 
           background: #f0f0f0; 
@@ -221,82 +216,76 @@ function printReceipt() {
           text-align: right;
           padding-right: 3px;
         }
-        .footer-spacer { flex: 1; }
         .footer { 
-          margin-top: 10px;
-          padding-top: 10px;
+          margin-top: 8px;
           page-break-inside: avoid;
-          flex-shrink: 0;
         }
         .footer table { width: 100%; border-collapse: collapse; }
         .footer td { 
           text-align: center; 
-          padding: 5px;
+          padding: 3px;
           font-size: 9pt;
           vertical-align: top;
         }
         .signature-area {
-          min-height: 50px;
+          min-height: 35px;
           border-top: 1px solid #000;
           display: inline-block;
-          min-width: 100px;
-          padding-top: 3px;
-          margin-top: 5px;
+          min-width: 90px;
+          padding-top: 2px;
+          margin-top: 3px;
         }
-        .notes-section { padding-top: 5px; }
-        .notes-section p { margin: 3px 0; font-size: 9pt; }
-        .thank-you { text-align: center; font-weight: bold; margin: 10px 0; }
+        .notes-section { padding-top: 3px; }
+        .notes-section p { margin: 2px 0; font-size: 9pt; }
+        .thank-you { text-align: center; font-weight: bold; margin: 6px 0; }
       </style>
     </head>
     <body>
-      <div class="container">
-        <div class="header">
-          <h1>SHO SHA MART</h1>
-        </div>
-        
-        <div class="info">
-          <table>
-            <tr>
-              <td>NAMA</td>
-              <td>: ${printData.value.branch?.name || '-'}</td>
-            </tr>
-            <tr>
-              <td>TANGGAL</td>
-              <td>: ${date}</td>
-            </tr>
-            <tr>
-              <td>ALAMAT</td>
-              <td>: ${printData.value.branch?.address || '-'}</td>
-            </tr>
-          </table>
-        </div>
-        
-        <table class="items">
-          <thead>
-            <tr>
-              <th style="width: 25px;">NO</th>
-              <th>PESANAN</th>
-              <th style="width: 40px;">QTY</th>
-              <th style="width: 45px;">SATUAN</th>
-              <th style="width: 75px;">HARGA</th>
-              <th style="width: 75px;">JUMLAH</th>
-              <th style="width: 60px;">KET</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsHtml}
-            <tr style="font-weight: bold;">
-              <td colspan="4"></td>
-              <td></td>
-              <td style="text-align: right; padding-right: 3px;">Rp ${grandTotal.toLocaleString('id-ID')}</td>
-              <td></td>
-            </tr>
-          </tbody>
+      <div class="header">
+        <h1>SHO SHA MART</h1>
+      </div>
+      
+      <div class="info">
+        <table>
+          <tr>
+            <td>NAMA</td>
+            <td>: ${printData.value.branch?.address || '-'}</td>
+          </tr>
+          <tr>
+            <td>TANGGAL</td>
+            <td>: ${date}</td>
+          </tr>
+          <tr>
+            <td>ALAMAT</td>
+            <td>: ${printData.value.branch?.name || '-'}</td>
+          </tr>
         </table>
-        
-        <div class="footer-spacer"></div>
-        
-        <div class="footer">
+      </div>
+      
+      <table class="items">
+        <thead>
+          <tr>
+            <th style="width: 25px;">NO</th>
+            <th>PESANAN</th>
+            <th style="width: 40px;">QTY</th>
+            <th style="width: 45px;">SATUAN</th>
+            <th style="width: 75px;">HARGA</th>
+            <th style="width: 75px;">JUMLAH</th>
+            <th style="width: 60px;">KET</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+          <tr style="font-weight: bold;">
+            <td colspan="4"></td>
+            <td></td>
+            <td style="text-align: right; padding-right: 3px;">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="footer">
           ${isHutang ? `
             <table>
               <tr>
@@ -307,11 +296,11 @@ function printReceipt() {
                   </div>
                 </td>
                 <td style="width: 25%;">
-                  <p style="font-weight: bold; font-size: 8pt; margin-bottom: 5px;">PELANGGAN</p>
-                  <div class="signature-area">${customerName}</div>
+                  <p style="font-weight: bold; font-size: 8pt; margin-bottom: 80px;">PELANGGAN</p>
+                  <div class="signature-area">${isHutang ? printData.value.branch?.name : customerName}</div>
                 </td>
                 <td style="width: 25%;">
-                  <p style="font-weight: bold; font-size: 8pt; margin-bottom: 5px;">SHO-SHA MART</p>
+                  <p style="font-weight: bold; font-size: 8pt; margin-bottom: 80px;">SHO-SHA MART</p>
                   <div class="signature-area">${cashierName}</div>
                 </td>
               </tr>
@@ -323,7 +312,6 @@ function printReceipt() {
             </p>
           `}
         </div>
-      </div>
       
       <script type="text/javascript">
         window.onload = function() {
