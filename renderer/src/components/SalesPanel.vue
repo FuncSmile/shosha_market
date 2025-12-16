@@ -187,6 +187,7 @@ function printReceipt() {
         body { 
           font-family: Arial, sans-serif; 
           font-size: 10pt;
+          padding: 4mm 6mm 6mm 6mm; /* small padding around content */
         }
         .header { text-align: center; margin-bottom: 8px; }
         .header h1 { margin: 0; font-size: 16pt; font-weight: bold; }
