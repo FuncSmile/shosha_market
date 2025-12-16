@@ -163,13 +163,13 @@ function printReceipt() {
   printData.value.items.forEach((item: any, idx: number) => {
     itemsHtml += `
       <tr>
-        <td style="text-align: center;">${idx + 1}</td>
-        <td>${item.name}</td>
-        <td style="text-align: center;">${item.qty}</td>
-        <td style="text-align: center;">${item.unit}</td>
-        <td style="text-align: right;">Rp ${item.price.toLocaleString('id-ID')}</td>
-        <td style="text-align: right;">Rp ${item.subtotal.toLocaleString('id-ID')}</td>
-        <td></td>
+        <td style="text-align: center; padding: 3px 2px;">${idx + 1}</td>
+        <td style="padding: 3px 2px;">${item.name}</td>
+        <td style="text-align: center; padding: 3px 2px;">${item.qty}</td>
+        <td style="text-align: center; padding: 3px 2px;">${item.unit}</td>
+        <td style="text-align: right; padding: 3px 2px;">Rp ${item.price.toLocaleString('id-ID')}</td>
+        <td style="text-align: right; padding: 3px 2px;">Rp ${item.subtotal.toLocaleString('id-ID')}</td>
+        <td style="padding: 3px 2px;"></td>
       </tr>
     `
   })
@@ -182,21 +182,63 @@ function printReceipt() {
       <meta charset="UTF-8">
       <title>${isHutang ? 'Surat Jalan' : 'Struk Pembayaran'}</title>
       <style>
-        @page { size: A4; margin: 20mm; }
-        body { font-family: Arial, sans-serif; font-size: 11pt; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { margin: 0; font-size: 18pt; }
-        .info { margin-bottom: 15px; }
-        .info table { width: 100%; }
-        .info td { padding: 3px 0; }
-        .info td:first-child { width: 100px; font-weight: bold; }
-        table.items { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        table.items th, table.items td { border: 1px solid #000; padding: 5px; }
-        table.items th { background: #f0f0f0; font-weight: bold; }
-        .total { margin-top: 10px; text-align: right; font-size: 12pt; }
-        .footer { margin-top: 40px; }
-        .footer table { width: 100%; }
-        .footer td { text-align: center; padding-top: 60px; }
+        * { margin: 0; padding: 0; }
+        @page { size: A4; margin: 12mm; }
+        body { 
+          font-family: Arial, sans-serif; 
+          font-size: 10pt;
+          padding: 4mm 6mm 6mm 6mm; /* small padding around content */
+        }
+        .header { text-align: center; margin-bottom: 8px; }
+        .header h1 { margin: 0; font-size: 16pt; font-weight: bold; }
+        .info { margin-bottom: 6px; }
+        .info table { width: 100%; border-collapse: collapse; }
+        .info td { padding: 2px 0; font-size: 9pt; }
+        .info td:first-child { width: 80px; font-weight: bold; }
+        table.items { 
+          width: 100%; 
+          border-collapse: collapse; 
+          margin: 6px 0;
+        }
+        table.items th { 
+          background: #f0f0f0; 
+          font-weight: bold;
+          border: 1px solid #000;
+          padding: 3px 2px;
+          font-size: 9pt;
+        }
+        table.items td { 
+          border: 1px solid #000; 
+          padding: 2px;
+          font-size: 9pt;
+        }
+        .total-row { 
+          font-weight: bold;
+          text-align: right;
+          padding-right: 3px;
+        }
+        .footer { 
+          margin-top: 8px;
+          page-break-inside: avoid;
+        }
+        .footer table { width: 100%; border-collapse: collapse; }
+        .footer td { 
+          text-align: center; 
+          padding: 3px;
+          font-size: 9pt;
+          vertical-align: top;
+        }
+        .signature-area {
+          min-height: 35px;
+          border-top: 1px solid #000;
+          display: inline-block;
+          min-width: 90px;
+          padding-top: 2px;
+          margin-top: 3px;
+        }
+        .notes-section { padding-top: 3px; }
+        .notes-section p { margin: 2px 0; font-size: 9pt; }
+        .thank-you { text-align: center; font-weight: bold; margin: 6px 0; }
       </style>
     </head>
     <body>
@@ -208,7 +250,7 @@ function printReceipt() {
         <table>
           <tr>
             <td>NAMA</td>
-            <td>: ${printData.value.branch?.name || '-'}</td>
+            <td>: ${printData.value.branch?.address || '-'}</td>
           </tr>
           <tr>
             <td>TANGGAL</td>
@@ -216,7 +258,7 @@ function printReceipt() {
           </tr>
           <tr>
             <td>ALAMAT</td>
-            <td>: ${printData.value.branch?.address || '-'}</td>
+            <td>: ${printData.value.branch?.name || '-'}</td>
           </tr>
         </table>
       </div>
@@ -224,57 +266,53 @@ function printReceipt() {
       <table class="items">
         <thead>
           <tr>
-            <th style="width: 30px;">NO</th>
+            <th style="width: 25px;">NO</th>
             <th>PESANAN</th>
-            <th style="width: 50px;">QTY</th>
-            <th style="width: 50px;">SATUAN</th>
-            <th style="width: 90px;">HARGA</th>
-            <th style="width: 90px;">JUMLAH</th>
-            <th style="width: 100px;">KET</th>
+            <th style="width: 40px;">QTY</th>
+            <th style="width: 45px;">SATUAN</th>
+            <th style="width: 75px;">HARGA</th>
+            <th style="width: 75px;">JUMLAH</th>
+            <th style="width: 60px;">KET</th>
           </tr>
         </thead>
         <tbody>
           ${itemsHtml}
-          <tr>
+          <tr style="font-weight: bold;">
             <td colspan="4"></td>
             <td></td>
-            <td style="text-align: right; font-weight: bold;">Rp ${grandTotal.toLocaleString('id-ID')}</td>
+            <td style="text-align: right; padding-right: 3px;">Rp ${grandTotal.toLocaleString('id-ID')}</td>
             <td></td>
           </tr>
         </tbody>
       </table>
       
       <div class="footer">
-        ${isHutang ? `
-          <table style="margin-top: 15px; width: 100%;">
-            <tr>
-              <td style="width: 50%; vertical-align: top; padding-right: 10px;">
-                <p>CATATAN/KETERANGAN :</p>
-                <p>${printData.value.notes || '-'}</p>
-              </td>
-              <td style="width: 25%; text-align: center;">
-                <p>PELANGGAN</p>
-                <p style="margin-top: 60px; border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 120px;">
-                  ${customerName}
-                </p>
-              </td>
-              <td style="width: 25%; text-align: center;">
-                <p>SHO-SHA MART</p>
-                <p style="margin-top: 60px; border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 120px;">
-                  ${cashierName}
-                </p>
-              </td>
-            </tr>
-          </table>
-        ` : `
-          <p style="text-align: center; margin-top: 30px; font-size: 14pt; font-weight: bold;">
-            TERIMA KASIH
-          </p>
-          <p style="text-align: center; margin-top: 10px; font-size: 10pt;">
-            No. Invoice: ${printData.value.receipt_no || 'Auto-generated'}
-          </p>
-        `}
-      </div>
+          ${isHutang ? `
+            <table>
+              <tr>
+                <td style="width: 50%; text-align: left; vertical-align: top;">
+                  <div class="notes-section">
+                    <p style="font-weight: bold; margin-bottom: 3px;">CATATAN/KETERANGAN:</p>
+                    <p>${printData.value.notes || '-'}</p>
+                  </div>
+                </td>
+                <td style="width: 25%;">
+                  <p style="font-weight: bold; font-size: 8pt; margin-bottom: 80px;">PELANGGAN</p>
+                  <div class="signature-area">${isHutang ? printData.value.branch?.name : customerName}</div>
+                </td>
+                <td style="width: 25%;">
+                  <p style="font-weight: bold; font-size: 8pt; margin-bottom: 80px;">SHO-SHA MART</p>
+                  <div class="signature-area">${cashierName}</div>
+                </td>
+              </tr>
+            </table>
+          ` : `
+            <p class="thank-you">TERIMA KASIH</p>
+            <p style="text-align: center; font-size: 9pt;">
+              No. Invoice: ${printData.value.receipt_no || 'Auto-generated'}
+            </p>
+          `}
+        </div>
       
       <script type="text/javascript">
         window.onload = function() {
