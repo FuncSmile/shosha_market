@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { api } from '../api'
+import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
 import Label from './ui/Label.vue'
 
+const { success, error } = useToast()
 const start = ref('')
 const end = ref('')
 const opnameId = ref('')
-const message = ref('')
 
 async function download(url: string, filename: string) {
   const a = document.createElement('a')
@@ -23,9 +24,9 @@ async function exportSales() {
   try {
     const url = await api.downloadSalesReport(start.value, end.value)
     await download(url, `sales_${start.value}_${end.value}.xlsx`)
-    message.value = 'Laporan penjualan diunduh.'
+    success('Laporan penjualan diunduh.')
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   }
 }
 
@@ -33,9 +34,9 @@ async function exportOpname() {
   try {
     const url = await api.downloadOpnameReport(opnameId.value)
     await download(url, `stock_opname_${opnameId.value}.xlsx`)
-    message.value = 'Laporan stock opname diunduh.'
+    success('Laporan stock opname diunduh.')
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   }
 }
 </script>
@@ -47,7 +48,6 @@ async function exportOpname() {
         <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Laporan Excel</p>
         <h2 class="text-2xl font-semibold text-white">Export penjualan & stock opname</h2>
       </div>
-      <span v-if="message" class="rounded-lg bg-emerald-500/20 px-3 py-1 text-sm text-emerald-100">{{ message }}</span>
     </header>
 
     <div class="grid gap-4 lg:grid-cols-2">

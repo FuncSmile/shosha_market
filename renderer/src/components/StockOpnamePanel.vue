@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { api, type Product } from '../api'
+import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
 import Label from './ui/Label.vue'
 
+const { success, error } = useToast()
 const products = ref<Product[]>([])
-const message = ref('')
 const saving = ref(false)
 const form = reactive({
   branch_id: '',
@@ -32,12 +33,11 @@ function updatePhysical(idx: number, delta: number) {
 
 async function submit() {
   saving.value = true
-  message.value = ''
   try {
     await api.createStockOpname(form)
-    message.value = 'Opname tersimpan & stok disesuaikan.'
+    success('Opname tersimpan & stok disesuaikan.')
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   } finally {
     saving.value = false
   }
@@ -53,7 +53,6 @@ onMounted(loadProducts)
         <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Stock Opname</p>
         <h2 class="text-2xl font-semibold text-white">Sesuaikan stok fisik dan export Excel</h2>
       </div>
-      <span v-if="message" class="rounded-lg bg-emerald-500/20 px-3 py-1 text-sm text-emerald-100">{{ message }}</span>
     </header>
 
     <Card>

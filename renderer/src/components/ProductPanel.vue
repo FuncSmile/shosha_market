@@ -1,15 +1,31 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { api, type Product } from '../api'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
+import { useToast } from '../composables/useToast'
 
+const { success, error, warning } = useToast()
 const products = ref<Product[]>([])
 const loading = ref(false)
 const saving = ref(false)
-const message = ref('')
 const syncedInfo = ref<Record<string, boolean>>({})
+// List search + pagination (5 per page)
+const listSearch = ref('')
+const listPage = ref(1)
+const listPageSize = 5
+const filteredList = computed(() => {
+  const q = listSearch.value.trim().toLowerCase()
+  if (!q) return products.value
+  return products.value.filter(p => p.name?.toLowerCase().includes(q) || p.unit?.toLowerCase().includes(q))
+})
+const totalListPages = computed(() => Math.ceil(filteredList.value.length / listPageSize))
+const paginatedList = computed(() => {
+  if (listPage.value > totalListPages.value) listPage.value = Math.max(1, totalListPages.value)
+  const start = (listPage.value - 1) * listPageSize
+  return filteredList.value.slice(start, start + listPageSize)
+})
 // Single-item form removed
 
 // Bulk input table rows
@@ -57,7 +73,7 @@ function parseAndAdd(text: string) {
   
   const lines = processed.split(/\r?\n/).filter(l => l.trim().length)
   if (!lines.length) {
-    message.value = 'Tidak ada baris yang ditemukan. Pastikan format: Nama,Satuan,Stok,Harga'
+    warning('Tidak ada baris yang ditemukan. Pastikan format: Nama,Satuan,Stok,Harga')
     return
   }
   const delim = processed.includes('\t') ? '\t' : ','
@@ -78,9 +94,9 @@ function parseAndAdd(text: string) {
   if (newRows.length) {
     const hasContent = bulkRows.value.some(r => r.name || r.unit || (r.price ?? 0))
     bulkRows.value = hasContent ? bulkRows.value.concat(newRows) : newRows
-    message.value = `✓ Berhasil menambahkan ${newRows.length} baris`
+    success(`✓ Berhasil menambahkan ${newRows.length} baris`)
   } else {
-    message.value = 'Tidak ada baris valid. Periksa Satuan dan Harga minimal > 0'
+    warning('Tidak ada baris valid. Periksa Satuan dan Harga minimal > 0')
   }
 }
 
@@ -120,8 +136,8 @@ function parseRupiah(str: string): number {
   return cleaned ? parseInt(cleaned, 10) : 0
 }
 async function saveAll() {
+  console.log('[ProductPanel] saveAll() triggered', { rows: bulkRows.value.length })
   saving.value = true
-  message.value = ''
   try {
     // Filter valid rows
     console.log('[SaveAll] Total rows in bulkRows:', bulkRows.value.length)
@@ -136,20 +152,41 @@ async function saveAll() {
         stock: Number(r.stock ?? 0),
         price: Number(r.price ?? 0)
       }))
-    console.log('[SaveAll] Filtered payload:', payload)
+    console.log('[ProductPanel] Filtered payload:', payload)
     if (!payload.length) {
-      message.value = 'Tidak ada baris valid untuk disimpan (minimal: Nama, Satuan, Harga > 0)'
+      warning('Tidak ada baris valid untuk disimpan (minimal: Nama, Satuan, Harga > 0)')
       return
     }
-    console.log('[SaveAll] Sending to API:', JSON.stringify(payload))
+    console.log('[ProductPanel] Sending to API bulkCreateProducts', JSON.stringify(payload))
+    // Duplicate checks
+    const existingNames = new Set(products.value.map(p => (p.name || '').trim().toLowerCase()))
+    const dupExisting: string[] = []
+    const seenNew = new Set<string>()
+    const dupWithin: string[] = []
+    for (const r of payload) {
+      const nm = (r.name || '').trim().toLowerCase()
+      if (!nm) continue
+      if (existingNames.has(nm)) dupExisting.push(r.name)
+      if (seenNew.has(nm)) dupWithin.push(r.name)
+      seenNew.add(nm)
+    }
+    if (dupExisting.length || dupWithin.length) {
+      const parts = [] as string[]
+      if (dupExisting.length) parts.push(`Sudah ada: ${dupExisting.join(', ')}`)
+      if (dupWithin.length) parts.push(`Duplikat di input: ${dupWithin.join(', ')}`)
+      error(`Duplikat nama barang terdeteksi. ${parts.join(' | ')}`)
+      return
+    }
+
     await api.bulkCreateProducts(payload as any)
-    message.value = `✓ Berhasil menyimpan ${payload.length} produk!`
+    console.log('[ProductPanel] bulkCreateProducts succeeded')
+    success(`✓ Berhasil menyimpan ${payload.length} produk!`)
     bulkRows.value = [{ name: '', unit: '', stock: 0, price: 0 }]
     await load()
   } catch (err) {
     const errMsg = (err as Error).message
     console.error('[SaveAll] Error:', errMsg)
-    message.value = `Error: ${errMsg}`
+    error(`Error: ${errMsg}`)
   } finally {
     saving.value = false
   }
@@ -164,7 +201,7 @@ async function load() {
       return acc
     }, {} as Record<string, boolean>)
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   } finally {
     loading.value = false
   }
@@ -177,6 +214,18 @@ async function remove(id: string) {
   await load()
 }
 
+// Adjust stock by delta (positive = masuk, negative = keluar)
+async function adjustStock(product: Product, delta: number) {
+  try {
+    const newStock = Math.max(0, (product.stock || 0) + delta)
+    await api.updateProduct(product.id, { stock: newStock })
+    success(`Stok ${product.name} sekarang ${newStock}`)
+    await load()
+  } catch (err) {
+    error((err as Error).message)
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -187,7 +236,6 @@ onMounted(load)
         <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Master Barang</p>
         <h2 class="text-2xl font-semibold text-white">Kelola barang & stok lokal</h2>
       </div>
-      <span v-if="message" class="rounded-lg bg-rose-500/20 px-3 py-1 text-sm text-rose-100">{{ message }}</span>
     </header>
 
     <div class="grid gap-4 lg:grid-cols-[1fr]">
@@ -251,12 +299,21 @@ onMounted(load)
         <div class="p-4">
           <div class="flex items-center justify-between">
             <p class="text-sm text-slate-300">Daftar Barang</p>
-            <span class="text-xs text-slate-500">{{ products.length }} item</span>
+            <span class="text-xs text-slate-500">{{ filteredList.length }} item</span>
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <input
+              v-model="listSearch"
+              placeholder="Cari barang..."
+              class="w-full max-w-sm rounded bg-slate-900/60 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400"
+              type="search"
+            />
+            <span class="text-xs text-slate-500">Hal {{ listPage }} / {{ totalListPages || 1 }}</span>
           </div>
           <div v-if="loading" class="py-6 text-sm text-slate-400">Memuat...</div>
           <div v-else class="mt-3 space-y-2">
             <div
-              v-for="product in products"
+              v-for="product in paginatedList"
               :key="product.id"
               class="flex items-center justify-between rounded-xl bg-slate-800/60 px-3 py-2 ring-1 ring-white/5"
             >
@@ -271,10 +328,17 @@ onMounted(load)
                 >
                   {{ syncedInfo[product.id] ? 'online (synced)' : 'offline (pending sync)' }}
                 </span>
+                <Button variant="ghost" class="text-xs" @click="() => adjustStock(product, 1)">Stock Masuk</Button>
+                <Button variant="ghost" class="text-xs" @click="() => adjustStock(product, -1)">Stock Keluar</Button>
                 <Button variant="ghost" class="text-xs text-rose-200" @click="remove(product.id)">Hapus</Button>
               </div>
             </div>
             <p v-if="!products.length" class="py-4 text-sm text-slate-400">Belum ada data.</p>
+            <div v-else class="flex items-center justify-between py-2">
+              <Button variant="ghost" size="sm" :disabled="listPage <= 1" @click="listPage--">Sebelumnya</Button>
+              <div class="text-xs text-slate-500">Menampilkan {{ paginatedList.length }} dari {{ filteredList.length }}</div>
+              <Button variant="ghost" size="sm" :disabled="listPage >= totalListPages" @click="listPage++">Berikutnya</Button>
+            </div>
           </div>
         </div>
       </Card>

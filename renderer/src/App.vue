@@ -70,9 +70,13 @@ onMounted(async () => {
 onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
+
+// Use Toaster from vue-sonner (shadcn CLI integrates Sonner)
+import { Toaster } from './components/ui/sonner'
 </script>
 
 <template>
+  <Toaster theme="dark" position="top-right" />
   <div class="flex min-h-screen bg-slate-950 text-slate-100">
     <aside class="flex w-72 flex-col border-r border-white/5 bg-slate-900/70 px-4 py-6">
       <div class="mb-8 rounded-2xl bg-emerald-500/10 p-4 ring-1 ring-emerald-400/20">

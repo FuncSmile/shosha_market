@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { api, type SalesAnalytics, type Branch, type Sale } from '../api'
+import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
@@ -9,8 +10,8 @@ import Label from './ui/Label.vue'
 
 const emit = defineEmits<{ (e: 'navigate', key: string): void }>()
 
+const { error } = useToast()
 const loading = ref(false)
-const message = ref('')
 const analytics = ref<SalesAnalytics | null>(null)
 const allSales = ref<Sale[]>([])
 const branches = ref<Branch[]>([])
@@ -73,7 +74,6 @@ const maxRevenue = computed(() => {
 
 async function loadAnalytics() {
   loading.value = true
-  message.value = ''
   try {
     analytics.value = await api.salesAnalytics(filters.start, filters.end)
     if (!filters.start) filters.start = analytics.value.start
@@ -82,7 +82,7 @@ async function loadAnalytics() {
     // Load all sales for filtering
     allSales.value = await api.listSales()
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   } finally {
     loading.value = false
   }
@@ -115,7 +115,6 @@ onMounted(async () => {
               Electron + Vue (TS) + Tailwind + shadcn-inspired UI. Sidecar Go + SQLite, sinkron ke PostgreSQL.
             </p>
           </div>
-          <span v-if="message" class="rounded-full bg-rose-500/20 px-3 py-1 text-xs text-rose-100">{{ message }}</span>
         </div>
 
         <div class="grid gap-3 md:grid-cols-2">

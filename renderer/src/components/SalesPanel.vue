@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { api, type Branch, type Product } from '../api'
+import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
@@ -8,22 +9,29 @@ import Label from './ui/Label.vue'
 import Select from './ui/Select.vue'
 import BranchSelect from './ui/BranchSelect.vue'
 
+const { success, error, warning } = useToast()
 const products = ref<Product[]>([])
 const branches = ref<Branch[]>([])
-const message = ref('')
 const saving = ref(false)
 const searchProduct = ref('')
+const currentProductPage = ref(1)
+const productPageSize = 5
 const showPrintDialog = ref(false)
 const printData = ref<any>(null)
 
 const form = reactive({
   branch_id: '',
+  // default to today (YYYY-MM-DD) for date input
+  created_at: new Date().toISOString().slice(0, 10),
   receipt_no: '',
   payment_method: 'cash',
   notes: '',
   jumlah_bayar: 0,
   items: [] as { product_id: string; qty: number; price: number }[],
 })
+
+// threshold to consider stock 'low' (show warning toast)
+const lowStockThreshold = 5
 
 const total = computed(() => form.items.reduce((sum, item) => sum + (item.qty || 0) * (item.price || 0), 0))
 const kembalian = computed(() => {
@@ -58,6 +66,12 @@ const filteredProducts = computed(() => {
   return products.value.filter((p) => p.name?.toLowerCase().includes(query))
 })
 
+const totalProductPages = computed(() => Math.ceil(filteredProducts.value.length / productPageSize))
+const paginatedProducts = computed(() => {
+  const start = (currentProductPage.value - 1) * productPageSize
+  return filteredProducts.value.slice(start, start + productPageSize)
+})
+
 async function loadProducts() {
   products.value = await api.listProducts()
 }
@@ -67,8 +81,30 @@ async function loadBranches() {
 }
 
 function addToCart(product: Product) {
+  // legacy name kept for internal use; prefer handleAddToCart
+  return handleAddToCart(product)
+}
+
+function handleAddToCart(product: Product) {
+  // Prevent adding out-of-stock products
+  if ((product.stock ?? 0) <= 0) {
+    warning(`Stok ${product.name} kosong, tidak dapat dipilih.`)
+    return
+  }
+
+  // Warn when stock is low
+  if ((product.stock ?? 0) <= lowStockThreshold) {
+    warning(`Stok ${product.name} menipis (${product.stock}).`)
+  }
+
   const existingItem = form.items.find((item) => item.product_id === product.id)
   if (existingItem) {
+    // don't allow exceeding stock
+    const maxAllowed = product.stock ?? Infinity
+    if ((existingItem.qty || 0) + 1 > maxAllowed) {
+      warning(`Tidak dapat menambahkan. Stok ${product.name} hanya ${product.stock}.`)
+      return
+    }
     existingItem.qty++
   } else {
     form.items.push({
@@ -85,7 +121,14 @@ function removeItem(idx: number) {
 
 function updateQty(idx: number, delta: number) {
   const newQty = (form.items[idx]?.qty || 0) + delta
+  const pid = form.items[idx]?.product_id
+  const product = products.value.find(p => p.id === pid)
+  const maxAllowed = product ? (product.stock ?? Infinity) : Infinity
   if (newQty > 0) {
+    if (newQty > maxAllowed) {
+      warning(`Jumlah melebihi stok. Stok ${product?.name} = ${product?.stock}`)
+      return
+    }
     form.items[idx].qty = newQty
   } else {
     removeItem(idx)
@@ -102,21 +145,22 @@ function getProductUnit(productId: string): string {
 
 async function submit() {
   if (!isValid.value) {
-    message.value = 'Lengkapi cabang dan pilih minimal 1 barang!'
+    warning('Lengkapi cabang dan pilih minimal 1 barang!')
     return
   }
   saving.value = true
-  message.value = ''
   try {
     const sale = await api.createSale({
       branch_id: form.branch_id,
       receipt_no: form.receipt_no || `INV-${Date.now()}`,
       payment_method: form.payment_method,
       notes: form.notes,
+      // send created_at if user selected a date (backend accepts optional created_at)
+      created_at: form.created_at,
       items: form.items,
     })
     
-    message.value = 'Transaksi berhasil disimpan!'
+    success('Transaksi berhasil disimpan!')
     
     // Prepare print data
     printData.value = {
@@ -139,7 +183,7 @@ async function submit() {
     form.notes = ''
     form.items = []
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   } finally {
     saving.value = false
   }
@@ -345,13 +389,6 @@ onMounted(async () => {
         <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Penjualan</p>
         <h2 class="text-2xl font-semibold text-white">Point of Sale (POS)</h2>
       </div>
-      <span
-        v-if="message"
-        :class="message.includes('berhasil') ? 'bg-emerald-500/20 text-emerald-100' : 'bg-rose-500/20 text-rose-100'"
-        class="rounded-lg px-3 py-1 text-sm"
-      >
-        {{ message }}
-      </span>
     </header>
 
     <div class="grid gap-4 lg:grid-cols-[1fr_400px]">
@@ -371,12 +408,16 @@ onMounted(async () => {
           </div>
 
           <!-- Product List -->
-          <div class="grid gap-2 max-h-96 overflow-y-auto">
+          <div class="grid gap-2">
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span>Menampilkan {{ paginatedProducts.length }} dari {{ filteredProducts.length }}</span>
+              <span>Hal {{ currentProductPage }} / {{ totalProductPages || 1 }}</span>
+            </div>
             <div
-              v-for="product in filteredProducts"
+              v-for="product in paginatedProducts"
               :key="product.id"
-              class="flex items-center justify-between rounded-lg bg-slate-800/60 p-3 ring-1 ring-white/10 hover:ring-emerald-400/50 transition-all cursor-pointer"
-              @click="addToCart(product)"
+              :class="[ 'flex items-center justify-between rounded-lg p-3 ring-1 transition-all', (product.stock ?? 0) > 0 ? 'bg-slate-800/60 ring-white/10 hover:ring-emerald-400/50 cursor-pointer' : 'bg-slate-800/30 ring-white/5 cursor-not-allowed opacity-60' ]"
+              @click="product.stock > 0 ? addToCart(product) : null"
             >
               <div>
                 <p class="text-sm font-semibold text-white">{{ product.name }}</p>
@@ -384,10 +425,15 @@ onMounted(async () => {
                   Stok: {{ product.stock }} {{ product.unit }} • Rp{{ product.price.toLocaleString('id-ID') }}
                 </p>
               </div>
-              <Button variant="ghost" size="sm" class="text-emerald-200">+ Tambah</Button>
+              <Button variant="ghost" size="sm" class="text-emerald-200" :disabled="(product.stock ?? 0) <= 0">+ Tambah</Button>
             </div>
             <div v-if="filteredProducts.length === 0" class="text-center py-4 text-sm text-slate-400">
               {{ searchProduct ? 'Barang tidak ditemukan' : 'Cari barang untuk menambahkan ke keranjang' }}
+            </div>
+            <div v-else class="flex items-center justify-between pt-2">
+              <Button variant="ghost" size="sm" :disabled="currentProductPage <= 1" @click="currentProductPage--">Sebelumnya</Button>
+              <div class="text-xs text-slate-500">5 per halaman</div>
+              <Button variant="ghost" size="sm" :disabled="currentProductPage >= totalProductPages" @click="currentProductPage++">Berikutnya</Button>
             </div>
           </div>
         </div>
@@ -532,6 +578,15 @@ onMounted(async () => {
             <div class="space-y-1">
               <Label>No. Invoice (Opsional)</Label>
               <Input v-model="form.receipt_no" placeholder="Auto-generate" />
+            </div>
+
+            <div class="space-y-1">
+              <Label>Tanggal Transaksi</Label>
+              <input
+                v-model="form.created_at"
+                type="date"
+                class="w-full h-10 rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400"
+              />
             </div>
 
             <div v-if="form.payment_method === 'hutang'" class="space-y-1">

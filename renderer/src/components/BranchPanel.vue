@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, computed } from 'vue'
 import { api, type Branch } from '../api'
+import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
@@ -14,9 +15,9 @@ import TableCell from './ui/TableCell.vue'
 import Pagination from './ui/Pagination.vue'
 import Select from './ui/Select.vue'
 
+const { success, error, warning } = useToast()
 const branches = ref<Branch[]>([])
 const loading = ref(false)
-const message = ref('')
 const syncedInfo = ref<Record<string, boolean>>({})
 const form = reactive<Partial<Branch>>({
   name: '',
@@ -30,7 +31,7 @@ const searchQuery = ref('')
 const codeFilter = ref('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const currentPage = ref(1)
-const pageSize = 10
+const pageSize = 5
 
 // Unique codes for filter dropdown
 const uniqueCodes = computed(() => {
@@ -91,26 +92,41 @@ async function load() {
       return acc
     }, {} as Record<string, boolean>)
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   } finally {
     loading.value = false
   }
 }
 
 async function save() {
-  message.value = ''
+  console.log('[BranchPanel] save() triggered', { form: { id: form.id, name: form.name, code: form.code } })
   try {
+    // Duplicate check by name (case-insensitive)
+    const nameToCheck = (form.name || '').trim().toLowerCase()
+    if (!nameToCheck) {
+      warning('Nama cabang wajib diisi')
+      return
+    }
+    const dup = branches.value.find(b => b.name?.trim().toLowerCase() === nameToCheck && b.id !== form.id)
+    if (dup) {
+      error(`Nama cabang sudah ada: ${dup.name}`)
+      return
+    }
     if (form.id) {
+      console.log('[BranchPanel] updating branch', form.id)
       await api.updateBranch(form.id, form)
-      message.value = 'Berhasil memperbarui cabang'
+      success('Berhasil memperbarui cabang')
     } else {
+      console.log('[BranchPanel] creating branch', { name: form.name, code: form.code })
       await api.createBranch(form)
-      message.value = 'Berhasil menambah cabang'
+      success('Berhasil menambah cabang')
     }
     Object.assign(form, { id: undefined, name: '', code: '', address: '', phone: '' })
     await load()
   } catch (err) {
-    message.value = (err as Error).message
+    const e = err as Error
+    console.error('[BranchPanel] save() error', e)
+    error(e.message)
   }
 }
 
@@ -135,7 +151,6 @@ onMounted(load)
         <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Cabang</p>
         <h2 class="text-2xl font-semibold text-white">CRUD cabang & metadata sinkronisasi</h2>
       </div>
-      <span v-if="message" class="rounded-lg bg-rose-500/20 px-3 py-1 text-sm text-rose-100">{{ message }}</span>
     </header>
 
     <div class="grid gap-4 lg:grid-cols-[360px_1fr]">
