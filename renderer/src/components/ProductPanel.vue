@@ -11,6 +11,10 @@ const products = ref<Product[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const syncedInfo = ref<Record<string, boolean>>({})
+// UI state for inline stock adjust
+const adjustingProductId = ref<string | null>(null)
+const adjustingAmount = ref<number>(1)
+const adjustingDelta = ref<number>(1) // +1 for masuk, -1 for keluar
 // List search + pagination (5 per page)
 const listSearch = ref('')
 const listPage = ref(1)
@@ -214,6 +218,30 @@ async function remove(id: string) {
   await load()
 }
 
+function openAdjust(product: Product, delta: number) {
+  adjustingProductId.value = product.id
+  adjustingDelta.value = delta
+  adjustingAmount.value = 1
+}
+
+function cancelAdjust() {
+  adjustingProductId.value = null
+  adjustingAmount.value = 1
+}
+
+async function confirmAdjust(product: Product) {
+  try {
+    const deltaTotal = (adjustingAmount.value || 0) * adjustingDelta.value
+    const newStock = Math.max(0, (product.stock || 0) + deltaTotal)
+    await api.updateProduct(product.id, { stock: newStock })
+    success(`Stok ${product.name} sekarang ${newStock}`)
+    cancelAdjust()
+    await load()
+  } catch (err) {
+    error((err as Error).message)
+  }
+}
+
 // Adjust stock by delta (positive = masuk, negative = keluar)
 async function adjustStock(product: Product, delta: number) {
   try {
@@ -328,8 +356,17 @@ onMounted(load)
                 >
                   {{ syncedInfo[product.id] ? 'online (synced)' : 'offline (pending sync)' }}
                 </span>
-                <Button variant="ghost" class="text-xs" @click="() => adjustStock(product, 1)">Stock Masuk</Button>
-                <Button variant="ghost" class="text-xs" @click="() => adjustStock(product, -1)">Stock Keluar</Button>
+                <template v-if="adjustingProductId !== product.id">
+                  <Button variant="ghost" class="text-xs" @click.prevent="() => openAdjust(product, 1)">Stock Masuk</Button>
+                  <Button variant="ghost" class="text-xs" @click.prevent="() => openAdjust(product, -1)">Stock Keluar</Button>
+                </template>
+                <template v-else>
+                  <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="adjustingAmount" min="1" class="w-20 rounded bg-slate-700 px-2 py-1 text-sm text-white" />
+                    <Button size="sm" class="text-xs" @click.prevent="() => confirmAdjust(product)">OK</Button>
+                    <Button variant="ghost" size="sm" class="text-xs" @click.prevent="cancelAdjust">Batal</Button>
+                  </div>
+                </template>
                 <Button variant="ghost" class="text-xs text-rose-200" @click="remove(product.id)">Hapus</Button>
               </div>
             </div>
