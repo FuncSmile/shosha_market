@@ -76,13 +76,13 @@ import { Toaster } from './components/ui/sonner'
 </script>
 
 <template>
-  <Toaster theme="dark" position="top-right" />
-  <div class="flex min-h-screen bg-slate-950 text-slate-100">
-    <aside class="flex w-72 flex-col border-r border-white/5 bg-slate-900/70 px-4 py-6">
-      <div class="mb-8 rounded-2xl bg-emerald-500/10 p-4 ring-1 ring-emerald-400/20">
-        <p class="text-xs uppercase tracking-[0.3em] text-emerald-200/80">Shosha Mart</p>
-        <h1 class="text-xl font-semibold text-white">POS Offline-first</h1>
-        <p class="text-xs text-emerald-100/80">Electron + Vue (TS) + Go sidecar</p>
+  <Toaster position="top-right" />
+  <div class="flex min-h-screen bg-gray-50 text-slate-900">
+    <aside class="flex w-72 flex-col border-r border-slate-200 bg-white px-4 py-6">
+      <div class="mb-8 rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+        <p class="text-xs uppercase tracking-[0.3em] text-emerald-600">Shosha Mart</p>
+        <h1 class="text-xl font-semibold text-slate-900">POS Offline-first</h1>
+        <p class="text-xs text-slate-600">Electron + Vue (TS) + Go sidecar</p>
       </div>
 
       <nav class="flex-1 space-y-1">
@@ -90,7 +90,7 @@ import { Toaster } from './components/ui/sonner'
           v-for="tab in tabs"
           :key="tab.key"
           class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition"
-          :class="active === tab.key ? 'bg-emerald-500 text-emerald-50 shadow-lg shadow-emerald-500/20' : 'bg-transparent text-slate-200 hover:bg-slate-800/80'"
+          :class="active === tab.key ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' : 'bg-transparent text-slate-700 hover:bg-slate-100'"
           @click="go(tab.key)"
         >
           <span>{{ tab.label }}</span>
@@ -98,22 +98,22 @@ import { Toaster } from './components/ui/sonner'
         </button>
       </nav>
 
-      <div class="mt-6 rounded-xl bg-slate-800/60 p-4 text-xs text-slate-300 ring-1 ring-white/5">
-        <p class="font-semibold text-white">Offline-first</p>
-        <p class="mt-1 text-slate-400">SQLite lokal, flag synced untuk antrean sinkron ke cloud PostgreSQL.</p>
+      <div class="mt-6 rounded-xl bg-white p-4 text-xs text-slate-600 ring-1 ring-slate-200">
+        <p class="font-semibold text-slate-900">Offline-first</p>
+        <p class="mt-1 text-slate-600">SQLite lokal, flag synced untuk antrean sinkron ke cloud PostgreSQL.</p>
       </div>
     </aside>
 
-    <main class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-8 py-8">
-      <header class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-slate-900/70 p-6 ring-1 ring-white/5">
+    <main class="flex-1 overflow-y-auto px-8 py-8">
+      <header class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-6 ring-1 ring-slate-200">
         <div>
-          <p class="text-xs uppercase tracking-[0.3em] text-emerald-200/80">Control Panel</p>
-          <p class="text-sm text-slate-300">Kelola data, POS, opname, dan laporan.</p>
+          <p class="text-xs uppercase tracking-[0.3em] text-emerald-500 font-bold">Control Panel</p>
+          <p class="text-sm text-slate-600">Kelola data, POS, opname, dan laporan.</p>
         </div>
         <div class="flex items-center gap-3">
           <div
             class="rounded-full px-3 py-1 text-xs font-semibold"
-            :class="syncSummary?.status === 'online' ? 'bg-emerald-500/20 text-emerald-100' : 'bg-amber-500/20 text-amber-100'"
+            :class="syncSummary?.status === 'online' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'"
           >
             {{ syncSummary?.status ?? 'offline' }}
             <span v-if="syncSummary?.queuedChanges">· {{ syncSummary?.queuedChanges }} antrian</span>
@@ -126,7 +126,7 @@ import { Toaster } from './components/ui/sonner'
 
       <div class="space-y-6">
         <SyncPanel />
-        <div class="rounded-2xl border border-white/5 bg-slate-900/60 p-6 shadow-xl shadow-emerald-500/5">
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <component :is="current" @navigate="go" />
         </div>
       </div>

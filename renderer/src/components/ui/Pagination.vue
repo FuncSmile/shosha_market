@@ -44,8 +44,8 @@ function goToPage(page: number) {
           :class="[
             'h-8 w-8 rounded text-sm transition-colors',
             page === currentPage
-              ? 'bg-emerald-500 text-white'
-              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              ? 'bg-emerald-600 text-white'
+              : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
           ]"
           @click="goToPage(page)"
         >

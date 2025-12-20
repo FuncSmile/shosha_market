@@ -23,24 +23,24 @@ const emit = defineEmits<{
 const isOpen = ref(props.open)
 
 const variantClasses = computed(() => {
-  const base = 'rounded-lg border px-4 py-3 text-sm shadow-lg'
+  const base = 'rounded-lg border px-4 py-3 text-sm shadow'
   const variants: Record<string, string> = {
-    default: `${base} border-slate-600/50 bg-slate-900/95 text-slate-100`,
-    success: `${base} border-emerald-500/30 bg-gradient-to-r from-slate-900/95 to-emerald-900/20 text-emerald-100`,
-    error: `${base} border-red-500/30 bg-gradient-to-r from-slate-900/95 to-red-900/20 text-red-100`,
-    warning: `${base} border-amber-500/30 bg-gradient-to-r from-slate-900/95 to-amber-900/20 text-amber-100`,
-    info: `${base} border-blue-500/30 bg-gradient-to-r from-slate-900/95 to-blue-900/20 text-blue-100`,
+    default: `${base} border-slate-200 bg-white text-slate-900`,
+    success: `${base} border-emerald-200 bg-emerald-50 text-emerald-800`,
+    error: `${base} border-red-200 bg-red-50 text-red-800`,
+    warning: `${base} border-amber-200 bg-amber-50 text-amber-800`,
+    info: `${base} border-blue-200 bg-blue-50 text-blue-800`,
   }
   return variants[props.variant]
 })
 
 const iconClass = computed(() => {
   const icons: Record<string, string> = {
-    success: 'text-emerald-400',
-    error: 'text-red-400',
-    warning: 'text-amber-400',
-    info: 'text-blue-400',
-    default: 'text-slate-400',
+    success: 'text-emerald-700',
+    error: 'text-red-700',
+    warning: 'text-amber-700',
+    info: 'text-blue-700',
+    default: 'text-slate-500',
   }
   return icons[props.variant]
 })

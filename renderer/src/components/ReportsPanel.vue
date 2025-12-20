@@ -45,15 +45,15 @@ async function exportOpname() {
   <section class="space-y-4">
     <header class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
       <div>
-        <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Laporan Excel</p>
-        <h2 class="text-2xl font-semibold text-white">Export penjualan & stock opname</h2>
+        <p class="text-sm uppercase tracking-[0.2em] text-emerald-500 font-bold">Laporan Excel</p>
+        <h2 class="text-2xl font-semibold">Export penjualan & stock opname</h2>
       </div>
     </header>
 
     <div class="grid gap-4 lg:grid-cols-2">
       <Card>
         <div class="p-4 space-y-3">
-          <p class="text-sm text-slate-300">Laporan Penjualan (.xlsx)</p>
+          <p class="text-sm font-bold">Laporan Penjualan (.xlsx)</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <div class="space-y-1">
               <Label>Mulai</Label>
@@ -73,7 +73,7 @@ async function exportOpname() {
 
       <Card>
         <div class="p-4 space-y-3">
-          <p class="text-sm text-slate-300">Laporan Stock Opname (.xlsx)</p>
+          <p class="text-sm font-bold">Laporan Stock Opname (.xlsx)</p>
           <div class="space-y-2">
             <Label>ID Stock Opname</Label>
             <Input v-model="opnameId" placeholder="Masukkan ID" />

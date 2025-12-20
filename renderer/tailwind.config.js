@@ -51,17 +51,17 @@ export default {
   			}
   		},
   		fontFamily: {
-  			display: [
-  				'Space Grotesk"',
-  				'Inter',
-  				'system-ui',
-  				'sans-serif'
-  			],
-  			body: [
-  				'Inter"',
-  				'system-ui',
-  				'sans-serif'
-  			]
+			display: [
+				'Space Grotesk',
+				'Inter',
+				'system-ui',
+				'sans-serif'
+			],
+			body: [
+				'Inter',
+				'system-ui',
+				'sans-serif'
+			]
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

@@ -17,7 +17,7 @@ function onInput(event: Event) {
     :type="props.type ?? 'text'"
     :value="props.modelValue"
     :placeholder="props.placeholder"
-    class="w-full rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400"
+    class="w-full rounded-lg bg-white px-3 py-2 text-sm text-slate-900 ring-1 ring-slate-200 focus:ring-emerald-600"
     @input="onInput"
   />
 </template>

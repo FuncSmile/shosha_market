@@ -148,8 +148,8 @@ onMounted(load)
   <section class="space-y-4">
     <header class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
       <div>
-        <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Cabang</p>
-        <h2 class="text-2xl font-semibold text-white">CRUD cabang & metadata sinkronisasi</h2>
+        <p class="text-lg uppercase tracking-[0.2em] text-emerald-500 font-bold">Cabang</p>
+        <h2 class="text-2xl font-semibold">CRUD cabang & metadata sinkronisasi</h2>
       </div>
     </header>
 
@@ -157,7 +157,7 @@ onMounted(load)
       <Card>
         <div class="p-4">
           <div class="flex items-center justify-between">
-            <p class="text-sm text-slate-300">
+            <p class="text-sm font-bold">
               {{ form.id ? '✏️ Edit cabang' : 'Tambah cabang' }}
             </p>
             <Button
@@ -184,7 +184,7 @@ onMounted(load)
               <textarea
                 v-model="form.address"
                 rows="2"
-                class="w-full rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400"
+                class="w-full rounded-lg px-3 py-2 text-sm ring-1 ring-slate-200 focus:ring-emerald-400 border-slate-200 outline-none resize-none placeholder:text-slate-500"
               />
             </div>
             <div class="space-y-1">
@@ -265,7 +265,7 @@ onMounted(load)
                   <TableCell>
                     <span
                       class="inline-flex rounded-full px-2 py-1 text-[10px] uppercase tracking-wide"
-                      :class="syncedInfo[branch.id] ? 'bg-emerald-500/20 text-emerald-100' : 'bg-amber-500/20 text-amber-100'"
+                      :class="syncedInfo[branch.id] ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'"
                     >
                       {{ syncedInfo[branch.id] ? 'online (synced)' : 'offline (pending sync)' }}
                     </span>

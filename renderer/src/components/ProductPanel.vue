@@ -242,17 +242,7 @@ async function confirmAdjust(product: Product) {
   }
 }
 
-// Adjust stock by delta (positive = masuk, negative = keluar)
-async function adjustStock(product: Product, delta: number) {
-  try {
-    const newStock = Math.max(0, (product.stock || 0) + delta)
-    await api.updateProduct(product.id, { stock: newStock })
-    success(`Stok ${product.name} sekarang ${newStock}`)
-    await load()
-  } catch (err) {
-    error((err as Error).message)
-  }
-}
+// (removed unused adjustStock) use openAdjust/confirmAdjust for stock changes
 
 onMounted(load)
 </script>
@@ -261,8 +251,8 @@ onMounted(load)
   <section class="space-y-4">
     <header class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
       <div>
-        <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Master Barang</p>
-        <h2 class="text-2xl font-semibold text-white">Kelola barang & stok lokal</h2>
+        <p class="text-sm uppercase tracking-[0.2em] text-emerald-500 font-bold">Master Barang</p>
+        <h2 class="text-2xl font-semibold">Kelola barang & stok lokal</h2>
       </div>
     </header>
 
@@ -271,20 +261,20 @@ onMounted(load)
       <Card>
         <div class="p-4">
           <div class="flex items-center justify-between">
-            <p class="text-sm text-slate-300">Input Massal (seperti Excel)</p>
+            <p class="text-sm font-bold">Input Massal (seperti Excel)</p>
             <div class="flex items-center gap-2">
               <Button variant="ghost" class="text-xs" @click="addRow">Tambah Baris</Button>
               <Button class="text-xs" :disabled="saving" @click="saveAll">Simpan Semua</Button>
               <Button variant="ghost" class="text-xs" @click="showPaste = !showPaste">Paste Excel/CSV</Button>
               <label class="text-xs cursor-pointer inline-flex items-center gap-2">
                 <input type="file" accept=".csv" @change="handleCSVUpload" class="hidden" />
-                <span class="px-2 py-1 rounded bg-slate-800/60">Import CSV</span>
+                <span class="px-2 py-1 rounded ">Import CSV</span>
               </label>
             </div>
           </div>
           <div v-if="showPaste" class="mt-3 space-y-2">
             <p class="text-xs text-slate-400">Tempel baris dari Excel/CSV. Urutan kolom: Nama, Satuan, Stok, Harga. Pisahkan dengan TAB atau koma.</p>
-            <textarea v-model="pasteText" rows="5" class="w-full rounded bg-slate-900/60 p-2 text-sm" placeholder="Contoh:\nSabun,pcs,10,5000\nBeras,kg,20,60000"></textarea>
+            <textarea v-model="pasteText" rows="5" class="w-full rounded  p-2 text-sm" placeholder="Contoh:\nSabun,pcs,10,5000\nBeras,kg,20,60000"></textarea>
             <div class="flex items-center gap-2">
               <Button class="text-xs" @click="applyPaste">Tambahkan</Button>
               <Button variant="ghost" class="text-xs" @click="showPaste = false">Batal</Button>
@@ -302,16 +292,16 @@ onMounted(load)
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, idx) in bulkRows" :key="idx" class="odd:bg-slate-800/40">
+                <tr v-for="(row, idx) in bulkRows" :key="idx" class="">
                   <td class="px-2 py-1"><Input v-model="row.name" placeholder="Nama" /></td>
                   <td class="px-2 py-1"><Input v-model="row.unit" placeholder="kg, pcs, liter" /></td>
                   <td class="px-2 py-1"><Input v-model="row.stock" type="number" min="0" /></td>
                   <td class="px-2 py-1">
-                    <input 
+                    <Input 
                       :value="formatRupiah(row.price)" 
-                      @input="(e) => { row.price = parseRupiah((e.target as HTMLInputElement).value) }"
+                      @input="(e: InputEvent) => { row.price = parseRupiah((e.target as HTMLInputElement).value) }"
                       placeholder="Rp 0"
-                      class="w-full rounded bg-slate-700 px-2 py-1 text-sm text-white placeholder:text-slate-500"
+                      class="w-full rounded  px-2 py-1 text-sm outline-slate-200 placeholder:text-slate-500"
                     />
                   </td>
                   <td class="px-2 py-1"><Button variant="ghost" class="text-xs text-rose-200" @click="removeRow(idx)">Hapus</Button></td>
@@ -326,14 +316,14 @@ onMounted(load)
       <Card>
         <div class="p-4">
           <div class="flex items-center justify-between">
-            <p class="text-sm text-slate-300">Daftar Barang</p>
+            <p class="text-sm font-bold">Daftar Barang</p>
             <span class="text-xs text-slate-500">{{ filteredList.length }} item</span>
           </div>
           <div class="mt-3 flex items-center gap-2">
             <input
               v-model="listSearch"
               placeholder="Cari barang..."
-              class="w-full max-w-sm rounded bg-slate-900/60 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400"
+              class="w-full max-w-sm rounded  px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400"
               type="search"
             />
             <span class="text-xs text-slate-500">Hal {{ listPage }} / {{ totalListPages || 1 }}</span>
@@ -343,16 +333,16 @@ onMounted(load)
             <div
               v-for="product in paginatedList"
               :key="product.id"
-              class="flex items-center justify-between rounded-xl bg-slate-800/60 px-3 py-2 ring-1 ring-white/5"
+              class="flex items-center justify-between rounded-xl  px-3 py-2 ring-1 ring-white/5"
             >
               <div>
-                <p class="font-semibold text-white">{{ product.name }}</p>
+                <p class="font-semibold text-black">{{ product.name }}</p>
                 <p class="text-xs text-slate-400">{{ product.unit }} • Stok {{ product.stock }} • {{ formatRupiah(product.price) }}</p>
               </div>
               <div class="flex items-center gap-2">
                 <span
                   class="rounded-full px-2 py-1 text-[10px] uppercase tracking-wide"
-                  :class="syncedInfo[product.id] ? 'bg-emerald-500/20 text-emerald-100' : 'bg-amber-500/20 text-amber-100'"
+                  :class="syncedInfo[product.id] ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'"
                 >
                   {{ syncedInfo[product.id] ? 'online (synced)' : 'offline (pending sync)' }}
                 </span>
@@ -362,7 +352,7 @@ onMounted(load)
                 </template>
                 <template v-else>
                   <div class="flex items-center gap-2">
-                    <input type="number" v-model.number="adjustingAmount" min="1" class="w-20 rounded bg-slate-700 px-2 py-1 text-sm text-white" />
+                    <input type="number" v-model.number="adjustingAmount" min="1" class="w-20 rounded  px-2 py-1 text-sm text-white" />
                     <Button size="sm" class="text-xs" @click.prevent="() => confirmAdjust(product)">OK</Button>
                     <Button variant="ghost" size="sm" class="text-xs" @click.prevent="cancelAdjust">Batal</Button>
                   </div>
