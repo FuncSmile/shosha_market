@@ -145,7 +145,9 @@ func main() {
 			opItems  []models.StockOpnameItem
 		)
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&products)
-		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&branches)
+		// PATCH: Always send all branches, ignore since filter
+		result := db.Find(&branches)
+		log.Printf("[SYNC] Branches found: %d, error: %v", len(branches), result.Error)
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&sales)
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&items)
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&opnames)

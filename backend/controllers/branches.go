@@ -73,13 +73,12 @@ func UpdateBranch(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 		}
 
 		// Update branch
-		if err := db.Model(&branch).Updates(models.Branch{
-			Code:    payload.Code,
-			Name:    payload.Name,
-			Address: payload.Address,
-			Phone:   payload.Phone,
-			Synced:  false, // Mark as unsynced when updated
-		}).Error; err != nil {
+		branch.Code = payload.Code
+		branch.Name = payload.Name
+		branch.Address = payload.Address
+		branch.Phone = payload.Phone
+		branch.Synced = false // Mark as unsynced when updated
+		if err := db.Save(&branch).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
