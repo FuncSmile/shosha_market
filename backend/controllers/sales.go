@@ -23,6 +23,7 @@ func CreateSale(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 			ReceiptNo     string `json:"receipt_no"`
 			PaymentMethod string `json:"payment_method"` // "cash" or "hutang"
 			Notes         string `json:"notes"`
+			CreatedAt     string `json:"created_at"`
 			Items         []struct {
 				ProductID string  `json:"product_id"`
 				Qty       int     `json:"qty"`
@@ -105,6 +106,16 @@ func CreateSale(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 			PaymentMethod: paymentMethod,
 			Notes:         payload.Notes,
 			Synced:        false,
+		}
+
+		// If caller provided created_at, try to parse it and set CreatedAt accordingly.
+		if payload.CreatedAt != "" {
+			// try RFC3339 first, fallback to date-only YYYY-MM-DD
+			if t, err := time.Parse(time.RFC3339, payload.CreatedAt); err == nil {
+				sale.CreatedAt = t
+			} else if t2, err2 := time.Parse("2006-01-02", payload.CreatedAt); err2 == nil {
+				sale.CreatedAt = t2
+			}
 		}
 
 		err := db.Transaction(func(tx *gorm.DB) error {

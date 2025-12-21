@@ -136,6 +136,7 @@ func main() {
 		} else {
 			since = time.Time{} // epoch -> all data
 		}
+		branchID := c.Query("branch_id")
 		var (
 			products []models.Product
 			branches []models.Branch
@@ -145,8 +146,13 @@ func main() {
 			opItems  []models.StockOpnameItem
 		)
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&products)
-		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&branches)
-		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&sales)
+		db.Find(&branches)
+		log.Printf("[SYNC] Branches found: %d, error: %v", len(branches), db.Error)
+		if branchID != "" {
+			db.Where("(updated_at >= ? OR created_at >= ?) AND branch_id = ?", since, since, branchID).Find(&sales)
+		} else {
+			db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&sales)
+		}
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&items)
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&opnames)
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&opItems)

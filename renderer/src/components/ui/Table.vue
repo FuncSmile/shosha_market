@@ -7,8 +7,8 @@ defineProps<{
 </script>
 
 <template>
-  <div class="relative w-full overflow-auto">
-    <table :class="cn('w-full caption-bottom text-sm', $props.class)">
+  <div class="relative w-full overflow-auto bg-white">
+    <table :class="cn('w-full caption-bottom text-sm divide-y divide-slate-200', $props.class)">
       <slot />
     </table>
   </div>

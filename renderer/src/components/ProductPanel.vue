@@ -1,15 +1,35 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { api, type Product } from '../api'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
+import { useToast } from '../composables/useToast'
 
+const { success, error, warning } = useToast()
 const products = ref<Product[]>([])
 const loading = ref(false)
 const saving = ref(false)
-const message = ref('')
 const syncedInfo = ref<Record<string, boolean>>({})
+// UI state for inline stock adjust
+const adjustingProductId = ref<string | null>(null)
+const adjustingAmount = ref<number>(1)
+const adjustingDelta = ref<number>(1) // +1 for masuk, -1 for keluar
+// List search + pagination (5 per page)
+const listSearch = ref('')
+const listPage = ref(1)
+const listPageSize = 5
+const filteredList = computed(() => {
+  const q = listSearch.value.trim().toLowerCase()
+  if (!q) return products.value
+  return products.value.filter(p => p.name?.toLowerCase().includes(q) || p.unit?.toLowerCase().includes(q))
+})
+const totalListPages = computed(() => Math.ceil(filteredList.value.length / listPageSize))
+const paginatedList = computed(() => {
+  if (listPage.value > totalListPages.value) listPage.value = Math.max(1, totalListPages.value)
+  const start = (listPage.value - 1) * listPageSize
+  return filteredList.value.slice(start, start + listPageSize)
+})
 // Single-item form removed
 
 // Bulk input table rows
@@ -57,7 +77,7 @@ function parseAndAdd(text: string) {
   
   const lines = processed.split(/\r?\n/).filter(l => l.trim().length)
   if (!lines.length) {
-    message.value = 'Tidak ada baris yang ditemukan. Pastikan format: Nama,Satuan,Stok,Harga'
+    warning('Tidak ada baris yang ditemukan. Pastikan format: Nama,Satuan,Stok,Harga')
     return
   }
   const delim = processed.includes('\t') ? '\t' : ','
@@ -78,9 +98,9 @@ function parseAndAdd(text: string) {
   if (newRows.length) {
     const hasContent = bulkRows.value.some(r => r.name || r.unit || (r.price ?? 0))
     bulkRows.value = hasContent ? bulkRows.value.concat(newRows) : newRows
-    message.value = `✓ Berhasil menambahkan ${newRows.length} baris`
+    success(`✓ Berhasil menambahkan ${newRows.length} baris`)
   } else {
-    message.value = 'Tidak ada baris valid. Periksa Satuan dan Harga minimal > 0'
+    warning('Tidak ada baris valid. Periksa Satuan dan Harga minimal > 0')
   }
 }
 
@@ -120,8 +140,8 @@ function parseRupiah(str: string): number {
   return cleaned ? parseInt(cleaned, 10) : 0
 }
 async function saveAll() {
+  console.log('[ProductPanel] saveAll() triggered', { rows: bulkRows.value.length })
   saving.value = true
-  message.value = ''
   try {
     // Filter valid rows
     console.log('[SaveAll] Total rows in bulkRows:', bulkRows.value.length)
@@ -136,20 +156,41 @@ async function saveAll() {
         stock: Number(r.stock ?? 0),
         price: Number(r.price ?? 0)
       }))
-    console.log('[SaveAll] Filtered payload:', payload)
+    console.log('[ProductPanel] Filtered payload:', payload)
     if (!payload.length) {
-      message.value = 'Tidak ada baris valid untuk disimpan (minimal: Nama, Satuan, Harga > 0)'
+      warning('Tidak ada baris valid untuk disimpan (minimal: Nama, Satuan, Harga > 0)')
       return
     }
-    console.log('[SaveAll] Sending to API:', JSON.stringify(payload))
+    console.log('[ProductPanel] Sending to API bulkCreateProducts', JSON.stringify(payload))
+    // Duplicate checks
+    const existingNames = new Set(products.value.map(p => (p.name || '').trim().toLowerCase()))
+    const dupExisting: string[] = []
+    const seenNew = new Set<string>()
+    const dupWithin: string[] = []
+    for (const r of payload) {
+      const nm = (r.name || '').trim().toLowerCase()
+      if (!nm) continue
+      if (existingNames.has(nm)) dupExisting.push(r.name)
+      if (seenNew.has(nm)) dupWithin.push(r.name)
+      seenNew.add(nm)
+    }
+    if (dupExisting.length || dupWithin.length) {
+      const parts = [] as string[]
+      if (dupExisting.length) parts.push(`Sudah ada: ${dupExisting.join(', ')}`)
+      if (dupWithin.length) parts.push(`Duplikat di input: ${dupWithin.join(', ')}`)
+      error(`Duplikat nama barang terdeteksi. ${parts.join(' | ')}`)
+      return
+    }
+
     await api.bulkCreateProducts(payload as any)
-    message.value = `✓ Berhasil menyimpan ${payload.length} produk!`
+    console.log('[ProductPanel] bulkCreateProducts succeeded')
+    success(`✓ Berhasil menyimpan ${payload.length} produk!`)
     bulkRows.value = [{ name: '', unit: '', stock: 0, price: 0 }]
     await load()
   } catch (err) {
     const errMsg = (err as Error).message
     console.error('[SaveAll] Error:', errMsg)
-    message.value = `Error: ${errMsg}`
+    error(`Error: ${errMsg}`)
   } finally {
     saving.value = false
   }
@@ -164,7 +205,7 @@ async function load() {
       return acc
     }, {} as Record<string, boolean>)
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   } finally {
     loading.value = false
   }
@@ -177,6 +218,32 @@ async function remove(id: string) {
   await load()
 }
 
+function openAdjust(product: Product, delta: number) {
+  adjustingProductId.value = product.id
+  adjustingDelta.value = delta
+  adjustingAmount.value = 1
+}
+
+function cancelAdjust() {
+  adjustingProductId.value = null
+  adjustingAmount.value = 1
+}
+
+async function confirmAdjust(product: Product) {
+  try {
+    const deltaTotal = (adjustingAmount.value || 0) * adjustingDelta.value
+    const newStock = Math.max(0, (product.stock || 0) + deltaTotal)
+    await api.updateProduct(product.id, { stock: newStock })
+    success(`Stok ${product.name} sekarang ${newStock}`)
+    cancelAdjust()
+    await load()
+  } catch (err) {
+    error((err as Error).message)
+  }
+}
+
+// (removed unused adjustStock) use openAdjust/confirmAdjust for stock changes
+
 onMounted(load)
 </script>
 
@@ -184,10 +251,9 @@ onMounted(load)
   <section class="space-y-4">
     <header class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
       <div>
-        <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Master Barang</p>
-        <h2 class="text-2xl font-semibold text-white">Kelola barang & stok lokal</h2>
+        <p class="text-sm uppercase tracking-[0.2em] text-emerald-500 font-bold">Master Barang</p>
+        <h2 class="text-2xl font-semibold">Kelola barang & stok lokal</h2>
       </div>
-      <span v-if="message" class="rounded-lg bg-rose-500/20 px-3 py-1 text-sm text-rose-100">{{ message }}</span>
     </header>
 
     <div class="grid gap-4 lg:grid-cols-[1fr]">
@@ -195,20 +261,20 @@ onMounted(load)
       <Card>
         <div class="p-4">
           <div class="flex items-center justify-between">
-            <p class="text-sm text-slate-300">Input Massal (seperti Excel)</p>
+            <p class="text-sm font-bold">Input Massal (seperti Excel)</p>
             <div class="flex items-center gap-2">
               <Button variant="ghost" class="text-xs" @click="addRow">Tambah Baris</Button>
               <Button class="text-xs" :disabled="saving" @click="saveAll">Simpan Semua</Button>
               <Button variant="ghost" class="text-xs" @click="showPaste = !showPaste">Paste Excel/CSV</Button>
               <label class="text-xs cursor-pointer inline-flex items-center gap-2">
                 <input type="file" accept=".csv" @change="handleCSVUpload" class="hidden" />
-                <span class="px-2 py-1 rounded bg-slate-800/60">Import CSV</span>
+                <span class="px-2 py-1 rounded ">Import CSV</span>
               </label>
             </div>
           </div>
           <div v-if="showPaste" class="mt-3 space-y-2">
             <p class="text-xs text-slate-400">Tempel baris dari Excel/CSV. Urutan kolom: Nama, Satuan, Stok, Harga. Pisahkan dengan TAB atau koma.</p>
-            <textarea v-model="pasteText" rows="5" class="w-full rounded bg-slate-900/60 p-2 text-sm" placeholder="Contoh:\nSabun,pcs,10,5000\nBeras,kg,20,60000"></textarea>
+            <textarea v-model="pasteText" rows="5" class="w-full rounded  p-2 text-sm" placeholder="Contoh:\nSabun,pcs,10,5000\nBeras,kg,20,60000"></textarea>
             <div class="flex items-center gap-2">
               <Button class="text-xs" @click="applyPaste">Tambahkan</Button>
               <Button variant="ghost" class="text-xs" @click="showPaste = false">Batal</Button>
@@ -226,16 +292,16 @@ onMounted(load)
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, idx) in bulkRows" :key="idx" class="odd:bg-slate-800/40">
+                <tr v-for="(row, idx) in bulkRows" :key="idx" class="">
                   <td class="px-2 py-1"><Input v-model="row.name" placeholder="Nama" /></td>
                   <td class="px-2 py-1"><Input v-model="row.unit" placeholder="kg, pcs, liter" /></td>
                   <td class="px-2 py-1"><Input v-model="row.stock" type="number" min="0" /></td>
                   <td class="px-2 py-1">
-                    <input 
+                    <Input 
                       :value="formatRupiah(row.price)" 
-                      @input="(e) => { row.price = parseRupiah((e.target as HTMLInputElement).value) }"
+                      @input="(e: InputEvent) => { row.price = parseRupiah((e.target as HTMLInputElement).value) }"
                       placeholder="Rp 0"
-                      class="w-full rounded bg-slate-700 px-2 py-1 text-sm text-white placeholder:text-slate-500"
+                      class="w-full rounded  px-2 py-1 text-sm outline-slate-200 placeholder:text-slate-500"
                     />
                   </td>
                   <td class="px-2 py-1"><Button variant="ghost" class="text-xs text-rose-200" @click="removeRow(idx)">Hapus</Button></td>
@@ -250,31 +316,56 @@ onMounted(load)
       <Card>
         <div class="p-4">
           <div class="flex items-center justify-between">
-            <p class="text-sm text-slate-300">Daftar Barang</p>
-            <span class="text-xs text-slate-500">{{ products.length }} item</span>
+            <p class="text-sm font-bold">Daftar Barang</p>
+            <span class="text-xs text-slate-500">{{ filteredList.length }} item</span>
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <input
+              v-model="listSearch"
+              placeholder="Cari barang..."
+              class="w-full max-w-sm rounded  px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400"
+              type="search"
+            />
+            <span class="text-xs text-slate-500">Hal {{ listPage }} / {{ totalListPages || 1 }}</span>
           </div>
           <div v-if="loading" class="py-6 text-sm text-slate-400">Memuat...</div>
           <div v-else class="mt-3 space-y-2">
             <div
-              v-for="product in products"
+              v-for="product in paginatedList"
               :key="product.id"
-              class="flex items-center justify-between rounded-xl bg-slate-800/60 px-3 py-2 ring-1 ring-white/5"
+              class="flex items-center justify-between rounded-xl  px-3 py-2 ring-1 ring-white/5"
             >
               <div>
-                <p class="font-semibold text-white">{{ product.name }}</p>
+                <p class="font-semibold text-black">{{ product.name }}</p>
                 <p class="text-xs text-slate-400">{{ product.unit }} • Stok {{ product.stock }} • {{ formatRupiah(product.price) }}</p>
               </div>
               <div class="flex items-center gap-2">
                 <span
                   class="rounded-full px-2 py-1 text-[10px] uppercase tracking-wide"
-                  :class="syncedInfo[product.id] ? 'bg-emerald-500/20 text-emerald-100' : 'bg-amber-500/20 text-amber-100'"
+                  :class="syncedInfo[product.id] ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'"
                 >
                   {{ syncedInfo[product.id] ? 'online (synced)' : 'offline (pending sync)' }}
                 </span>
+                <template v-if="adjustingProductId !== product.id">
+                  <Button variant="ghost" class="text-xs" @click.prevent="() => openAdjust(product, 1)">Stock Masuk</Button>
+                  <Button variant="ghost" class="text-xs" @click.prevent="() => openAdjust(product, -1)">Stock Keluar</Button>
+                </template>
+                <template v-else>
+                  <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="adjustingAmount" min="1" class="w-20 rounded  px-2 py-1 text-sm text-white" />
+                    <Button size="sm" class="text-xs" @click.prevent="() => confirmAdjust(product)">OK</Button>
+                    <Button variant="ghost" size="sm" class="text-xs" @click.prevent="cancelAdjust">Batal</Button>
+                  </div>
+                </template>
                 <Button variant="ghost" class="text-xs text-rose-200" @click="remove(product.id)">Hapus</Button>
               </div>
             </div>
             <p v-if="!products.length" class="py-4 text-sm text-slate-400">Belum ada data.</p>
+            <div v-else class="flex items-center justify-between py-2">
+              <Button variant="ghost" size="sm" :disabled="listPage <= 1" @click="listPage--">Sebelumnya</Button>
+              <div class="text-xs text-slate-500">Menampilkan {{ paginatedList.length }} dari {{ filteredList.length }}</div>
+              <Button variant="ghost" size="sm" :disabled="listPage >= totalListPages" @click="listPage++">Berikutnya</Button>
+            </div>
           </div>
         </div>
       </Card>

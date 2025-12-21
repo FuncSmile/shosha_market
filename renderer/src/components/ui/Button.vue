@@ -5,11 +5,11 @@ const props = defineProps<{
   disabled?: boolean
 }>()
 
-const base = 'inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400'
+const base = 'inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2'
 const variants: Record<string, string> = {
-  default: 'bg-emerald-500 text-emerald-50 shadow-md shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60',
-  outline: 'border border-white/10 text-slate-100 hover:bg-slate-800 disabled:opacity-60',
-  ghost: 'text-slate-200 hover:bg-slate-800/60 disabled:opacity-60',
+  default: 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60',
+  outline: 'border border-slate-200 text-slate-900 bg-white hover:bg-slate-50 disabled:opacity-60',
+  ghost: 'text-slate-700 hover:bg-slate-50 disabled:opacity-60',
 }
 </script>
 

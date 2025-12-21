@@ -1,15 +1,15 @@
 <template>
-  <div class="rounded-xl border border-white/5 bg-slate-900/70 p-4 ring-1 ring-white/5 space-y-3">
+  <div class="rounded-xl border border-slate-200 bg-white p-4 ring-1 ring-slate-200 space-y-3">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <p class="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Sinkronisasi</p>
-        <h2 class="text-base font-semibold text-white">Tarik perubahan dari Postgres ke SQLite</h2>
+        <p class="text-xs uppercase tracking-[0.2em] text-emerald-500 font-bold">Sinkronisasi</p>
+        <h2 class="text-base font-semibold text-slate-900">Tarik perubahan dari Postgres ke SQLite</h2>
       </div>
       <button
         class="px-4 py-2 text-sm font-semibold rounded-lg transition disabled:opacity-50"
         :class="loading
-          ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-          : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20'"
+          ? 'bg-slate-100 text-slate-700 cursor-not-allowed'
+          : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'"
         :disabled="loading"
         @click="runSync"
       >
@@ -23,20 +23,20 @@
         <span :class="statusClass" class="font-semibold">{{ statusLabel }}</span>
       </div>
       <div>
-        <p class="text-xs text-slate-400 mb-1">Antrian Lokal</p>
-        <strong class="text-white">{{ summary?.queuedChanges ?? 0 }}</strong>
+        <p class="text-xs text-slate-500 mb-1">Antrian Lokal</p>
+        <strong class="text-slate-900">{{ summary?.queuedChanges ?? 0 }}</strong>
       </div>
       <div>
-        <p class="text-xs text-slate-400 mb-1">Terakhir Sinkron</p>
-        <strong class="text-white text-xs">{{ lastSync }}</strong>
+        <p class="text-xs text-slate-500 mb-1">Terakhir Sinkron</p>
+        <strong class="text-slate-700 text-xs">{{ lastSync }}</strong>
       </div>
       <div>
-        <p class="text-xs text-slate-400 mb-1">Database</p>
-        <code class="text-xs text-emerald-400">{{ summary?.dbPath || '-' }}</code>
+        <p class="text-xs text-slate-500 mb-1">Database</p>
+        <code class="text-xs text-emerald-700">{{ summary?.dbPath || '-' }}</code>
       </div>
     </div>
 
-    <div v-if="summary?.lastError" class="text-xs text-red-400 bg-red-500/10 rounded px-3 py-2 border border-red-500/20">
+    <div v-if="summary?.lastError" class="text-xs text-red-700 bg-red-50 rounded px-3 py-2 border border-red-200">
       Error: {{ summary.lastError }}
     </div>
   </div>

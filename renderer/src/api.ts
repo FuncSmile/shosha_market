@@ -154,6 +154,8 @@ export const api = {
     receipt_no: string
     payment_method: string
     notes: string
+    // optional created_at ISO date/time (e.g. 2025-12-17 or 2025-12-17T14:00:00Z)
+    created_at?: string
     items: { product_id: string; qty: number; price: number }[] 
   }) =>
     request<Sale>('/sales', { method: 'POST', body: JSON.stringify(payload) }),

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { api, type Product } from '../api'
+import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
 import Label from './ui/Label.vue'
 
+const { success, error } = useToast()
 const products = ref<Product[]>([])
-const message = ref('')
 const saving = ref(false)
 const form = reactive({
   branch_id: '',
@@ -32,12 +33,11 @@ function updatePhysical(idx: number, delta: number) {
 
 async function submit() {
   saving.value = true
-  message.value = ''
   try {
     await api.createStockOpname(form)
-    message.value = 'Opname tersimpan & stok disesuaikan.'
+    success('Opname tersimpan & stok disesuaikan.')
   } catch (err) {
-    message.value = (err as Error).message
+    error((err as Error).message)
   } finally {
     saving.value = false
   }
@@ -50,10 +50,9 @@ onMounted(loadProducts)
   <section class="space-y-4">
     <header class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
       <div>
-        <p class="text-sm uppercase tracking-[0.2em] text-emerald-200/80">Stock Opname</p>
-        <h2 class="text-2xl font-semibold text-white">Sesuaikan stok fisik dan export Excel</h2>
+        <p class="text-sm uppercase tracking-[0.2em] text-emerald-500 font-bold">Stock Opname</p>
+        <h2 class="text-2xl font-semibold">Sesuaikan stok fisik dan export Excel</h2>
       </div>
-      <span v-if="message" class="rounded-lg bg-emerald-500/20 px-3 py-1 text-sm text-emerald-100">{{ message }}</span>
     </header>
 
     <Card>
@@ -71,24 +70,24 @@ onMounted(loadProducts)
 
         <Card>
           <div class="flex items-center justify-between px-4 py-3">
-            <p class="text-sm text-slate-300">Hitung stok</p>
+            <p class="text-sm">Hitung stok</p>
             <p class="text-xs text-slate-500">{{ form.items.length }} barang</p>
           </div>
           <div class="space-y-2 p-3">
             <div
               v-for="(item, idx) in form.items"
               :key="item.product_id"
-              class="grid gap-2 rounded-lg bg-slate-900/60 p-3 ring-1 ring-white/5 sm:grid-cols-[1.5fr_1fr_1fr_auto]"
+              class="grid gap-2 rounded-lg  p-3 ring-1 ring-white/5 sm:grid-cols-[1.5fr_1fr_1fr_auto]"
             >
               <div>
-                <p class="text-sm font-semibold text-white">
+                <p class="text-sm font-semibold">
                   {{ products.find((p) => p.id === item.product_id)?.name ?? 'Produk' }}
                 </p>
                 <p class="text-xs text-slate-500">{{ products.find((p) => p.id === item.product_id)?.unit }}</p>
               </div>
               <div class="space-y-1">
                 <p class="text-xs text-slate-500">Stok Sistem</p>
-                <div class="rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-emerald-100 ring-1 ring-white/10">
+                <div class="rounded-lg bg-slate-100 px-3 py-2 text-sm ring-1 ring-white/10">
                   {{ item.qty_system }}
                 </div>
               </div>

@@ -52,26 +52,26 @@ function handleInputBlur() {
       type="text"
       :placeholder="selectedBranch ? `${selectedBranch.name} (${selectedBranch.code})` : 'Ketik untuk cari cabang...'"
       :disabled="disabled"
-      class="w-full rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400 focus:outline-none disabled:opacity-60"
+      class="w-full rounded-lg bg-white px-3 py-2 text-sm text-slate-900 ring-1 ring-slate-200 focus:ring-emerald-600 focus:outline-none disabled:opacity-60"
       @focus="handleInputFocus"
       @blur="handleInputBlur"
     />
     <div
       v-if="isOpen && filteredBranches.length > 0"
-      class="absolute top-full left-0 right-0 mt-1 z-50 max-h-64 overflow-y-auto rounded-lg bg-slate-800 ring-1 ring-white/10 shadow-lg"
+      class="absolute top-full left-0 right-0 mt-1 z-50 max-h-64 overflow-y-auto rounded-lg bg-white ring-1 ring-slate-200 shadow-sm"
     >
       <div
         v-for="branch in filteredBranches"
         :key="branch.id"
-        class="px-3 py-2 cursor-pointer hover:bg-slate-700/60 transition-colors"
-        :class="branch.id === modelValue ? 'bg-emerald-500/20' : ''"
+        class="px-3 py-2 cursor-pointer hover:bg-slate-50 transition-colors"
+        :class="branch.id === modelValue ? 'bg-emerald-100' : ''"
         @mousedown.prevent="selectBranch(branch)"
       >
-        <p class="text-sm font-semibold text-white">{{ branch.name }}</p>
-        <p class="text-xs text-slate-400">{{ branch.code }} • {{ branch.phone || '-' }}</p>
+        <p class="text-sm font-semibold text-slate-900">{{ branch.name }}</p>
+        <p class="text-xs text-slate-500">{{ branch.code }} • {{ branch.phone || '-' }}</p>
       </div>
     </div>
-    <div v-else-if="isOpen && searchQuery && filteredBranches.length === 0" class="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg bg-slate-800 ring-1 ring-white/10 p-3 text-xs text-slate-400">
+    <div v-else-if="isOpen && searchQuery && filteredBranches.length === 0" class="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg bg-white ring-1 ring-slate-200 p-3 text-xs text-slate-500">
       Tidak ada cabang yang cocok
     </div>
   </div>
