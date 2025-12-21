@@ -51,5 +51,8 @@ func Register(r *gin.Engine, db *gorm.DB, cfg config.AppConfig, worker *syncsvc.
 	r.POST("/api/sync/run", controllers.SyncRun(worker))
 	r.GET("/api/analytics/sales", controllers.SalesAnalytics(db))
 
+	// Debug endpoints
+	r.GET("/api/debug/unsynced", controllers.UnsyncedCounts(db))
+
 	r.GET("/api/reports/sales", controllers.SalesReport(db, cfg))
 }
