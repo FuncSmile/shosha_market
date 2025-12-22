@@ -381,7 +381,7 @@ onMounted(async () => {
     <Card>
       <div class="p-4 space-y-3">
         <div v-if="error" class="text-rose-300 text-sm">{{ error }}</div>
-        <div v-if="loading" class="text-slate-300 text-sm">Memuat...</div>
+        <div v-if="loading" class=" text-sm">Memuat...</div>
 
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm text-left text-slate-700">
