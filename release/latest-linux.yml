@@ -1,9 +1,9 @@
 version: 1.0.1
 files:
   - url: ShoshaMart-POS-1.0.1.AppImage
-    sha512: KEOrjK3FLaao9FBQR5hMpl2VJDv85wAGJskvONraeV5aZJPIZVqT2y6QQxbbap6sIhWyUfFERRb5NwEonvgvWw==
-    size: 121955485
-    blockMapSize: 128177
+    sha512: QdbDSSwhJUbSQ2Qlo1nC7MbjRj+N7KSE/lKhnzNEQr5dqaxq/7BZdRe+r2L5WwgrOXZs6tdFAsvVLVh2PE+wSw==
+    size: 121955539
+    blockMapSize: 128231
 path: ShoshaMart-POS-1.0.1.AppImage
-sha512: KEOrjK3FLaao9FBQR5hMpl2VJDv85wAGJskvONraeV5aZJPIZVqT2y6QQxbbap6sIhWyUfFERRb5NwEonvgvWw==
-releaseDate: '2025-12-22T17:41:43.217Z'
+sha512: QdbDSSwhJUbSQ2Qlo1nC7MbjRj+N7KSE/lKhnzNEQr5dqaxq/7BZdRe+r2L5WwgrOXZs6tdFAsvVLVh2PE+wSw==
+releaseDate: '2025-12-22T18:13:49.135Z'
