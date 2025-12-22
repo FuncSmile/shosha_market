@@ -10,6 +10,11 @@ const { dialog } = require('electron')
  */
 function setupAutoUpdate(mainWindow, stopCallback) {
   autoUpdater.checkForUpdatesAndNotify()
+  try {
+    autoUpdater.checkForUpdatesAndNotify()
+  } catch (e) {
+    console.error('autoUpdater.checkForUpdatesAndNotify error:', e)
+  }
 
   autoUpdater.on('update-available', () => {
     dialog.showMessageBox(mainWindow, {
@@ -51,6 +56,20 @@ function setupAutoUpdate(mainWindow, stopCallback) {
           console.error('quitAndInstall error:', e)
         }
       }, 800)
+    }
+  })
+
+  autoUpdater.on('error', (err) => {
+    console.error('autoUpdater error:', err && err.stack ? err.stack : err)
+    try {
+      // show non-blocking message so user knows update check failed
+      dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Update Error',
+        message: `Auto-update check failed: ${err && err.message ? err.message : String(err)}`,
+      })
+    } catch (e) {
+      // ignore
     }
   })
 }
