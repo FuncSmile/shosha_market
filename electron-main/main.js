@@ -5,6 +5,15 @@ const fs = require('fs')
 const net = require('net')
 const { setupAutoUpdate } = require('./updater')
 
+// Global handlers to avoid unhandled promise rejections and uncaught exceptions
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UnhandledPromiseRejection:', reason && reason.stack ? reason.stack : reason)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('UncaughtException:', err && err.stack ? err.stack : err)
+})
+
 let goProcess
 
 async function createWindow() {
