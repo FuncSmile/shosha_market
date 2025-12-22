@@ -3,6 +3,7 @@ const { spawn } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 const net = require('net')
+const { setupAutoUpdate } = require('./updater')
 
 let goProcess
 
@@ -16,6 +17,9 @@ async function createWindow() {
       nodeIntegration: false,
     },
   })
+
+  // Setup auto-update
+  setupAutoUpdate(win)
 
   const devURL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
   

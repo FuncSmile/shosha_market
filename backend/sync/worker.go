@@ -258,6 +258,25 @@ func (w *Worker) download(ctx context.Context) error {
 	saveOptsSaleItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "updated_at", "created_at"})}
 	saveOptsOpnames := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "updated_at", "created_at"})}
 	saveOptsOpItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "updated_at", "created_at"})}
+	// Set synced=true untuk semua data hasil download
+	for i := range data.Branches {
+		data.Branches[i].Synced = true
+	}
+	for i := range data.Products {
+		data.Products[i].Synced = true
+	}
+	for i := range data.Sales {
+		data.Sales[i].Synced = true
+	}
+	for i := range data.SaleItems {
+		data.SaleItems[i].Synced = true
+	}
+	for i := range data.StockOpnames {
+		data.StockOpnames[i].Synced = true
+	}
+	for i := range data.StockOpnameItems {
+		data.StockOpnameItems[i].Synced = true
+	}
 	if len(data.Branches) > 0 {
 		res := w.db.Clauses(saveOptsBranches).Create(&data.Branches)
 		log.Printf("[SYNC] downloaded branches: %d, error: %v", len(data.Branches), res.Error)

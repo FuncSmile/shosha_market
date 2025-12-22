@@ -159,9 +159,9 @@ async function submit() {
       created_at: form.created_at,
       items: form.items,
     })
-    
+
     success('Transaksi berhasil disimpan!')
-    
+
     // Prepare print data
     printData.value = {
       ...sale,
@@ -173,10 +173,10 @@ async function submit() {
         subtotal: item.qty * item.price,
       })),
     }
-    
+
     // Show print dialog
     showPrintDialog.value = true
-    
+
     // Reset form
     form.receipt_no = ''
     form.payment_method = 'cash'
@@ -192,7 +192,7 @@ async function submit() {
 function printReceipt() {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
-  
+
   const isHutang = printData.value.payment_method === 'hutang'
   const txDate = printData.value.created_at ? new Date(printData.value.created_at) : new Date()
   const date = txDate.toLocaleDateString('id-ID', {
@@ -200,132 +200,248 @@ function printReceipt() {
     month: 'long',
     year: 'numeric'
   })
-  const cashierName = 'Fadli'
-  
+  const cashierName = ''
+
   let itemsHtml = ''
   printData.value.items.forEach((item: any, idx: number) => {
     itemsHtml += `
       <tr>
-        <td style="text-align: center; padding: 3px 2px;">${idx + 1}</td>
-        <td style="padding: 3px 2px;">${item.name}</td>
-        <td style="text-align: center; padding: 3px 2px;">${item.qty}</td>
-        <td style="text-align: center; padding: 3px 2px;">${item.unit}</td>
-        <td style="text-align: right; padding: 3px 2px;">Rp ${item.price.toLocaleString('id-ID')}</td>
-        <td style="text-align: right; padding: 3px 2px;">Rp ${item.subtotal.toLocaleString('id-ID')}</td>
-        <td style="padding: 3px 2px;"></td>
+        <td class="col-no" style="text-align: center; padding: 3px 2px;">${idx + 1}</td>
+        <td class="col-name" style="padding: 3px 2px;">${item.name}</td>
+        <td class="col-qty" style="text-align: center; padding: 3px 2px;">${item.qty}</td>
+        <td class="col-unit" style="text-align: center; padding: 3px 2px;">${item.unit}</td>
+        <td class="col-price" style="text-align: right; padding: 3px 2px;">Rp ${item.price.toLocaleString('id-ID')}</td>
+        <td class="col-sum" style="text-align: right; padding: 3px 2px;">Rp ${item.subtotal.toLocaleString('id-ID')}</td>
+        <td class="col-ket" style="padding: 3px 2px;"></td>
       </tr>
     `
   })
   const grandTotal = printData.value.items.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
-  
+
   const html = `
     <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>${isHutang ? 'Surat Jalan' : 'Struk Pembayaran'}</title>
-      <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        @page{size:A4;margin:12mm}
-        body{font-family:Arial,Helvetica,sans-serif;font-size:10pt;padding:8mm;color:#000}
-        .header{display:flex;justify-content:center;align-items:flex-start;margin-bottom:6px}
-        .title{font-size:20pt;font-weight:800;text-align:center}
-        .info{margin-top:6px;margin-bottom:6px}
-        .info table{width:100%;border-collapse:collapse}
-        .info td{padding:2px 0;font-size:9pt}
-        table.items{width:100%;border-collapse:collapse;margin-top:8px;border-top:1px solid #000;border-bottom:1px solid #000}
-        table.items th{padding:4px 6px;border-left:1px solid #000;border-right:1px solid #000;border-bottom:1px solid #000;text-align:center;background:#fff;font-weight:700}
-        table.items td{padding:4px 6px;border-left:1px solid #000;border-right:1px solid #000;border-bottom:none;vertical-align:top;line-height:1.2}
-        table.items td.name{min-height:44px}
-        table.items th.col-no,table.items td.col-no{width:40px;text-align:center}
-        table.items th.col-name,table.items td.col-name{width:46%}
-        table.items th.col-qty,table.items td.col-qty{width:8%;text-align:center}
-        table.items th.col-unit,table.items td.col-unit{width:10%;text-align:center}
-        table.items th.col-price,table.items td.col-price{width:10%;text-align:right}
-        table.items th.col-sum,table.items td.col-sum{width:10%;text-align:right}
-        table.items th.col-ket,table.items td.col-ket{width:8%}
-        .items tfoot td{border-top:1px solid #000;padding:8px}
-        .notes{margin-top:6px;display:flex;gap:8px}
-        .notes .left{width:60%}
-        .notes .right{width:40%;border:1px solid #000;padding:6px}
-        .signatures{margin-top:24px;display:flex;justify-content:space-between}
-        .signature{width:32%;text-align:center}
-        .signature .line{border-top:1px solid #000;margin-top:36px}
-      </style>
-    </head>
-    <body>
-      <div class="header"><div class="title">SHO SHA MART</div></div>
-
-      <div class="info">
-        <table>
-          <tr><td style="width:80px">NAMA</td><td>: ${printData.value.branch?.name || '-'}</td></tr>
-          <tr><td>TANGGAL</td><td>: ${date}</td></tr>
-          <tr><td>ALAMAT</td><td>: ${printData.value.branch?.address || '-'}</td></tr>
-        </table>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>${isHutang ? 'Surat Jalan' : 'Struk Pembayaran'}</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 9pt;
+        padding: 8mm;
+        color: #000;
+      }
+      .container-head {
+        display: flex;
+        justify-content: space-between;
+      }
+      .header {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        margin-bottom: 6px;
+        width: 40%;
+      }
+      .header-cust {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-end;
+        margin-bottom: 6px;
+        width: 40%;
+      }
+      .title {
+        font-size: 20pt;
+        font-weight: 800;
+        text-align: center;
+      }
+        .title-cust {
+            font-size: 14pt;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+      table.items {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        border-top: 1px solid #000;
+        border-bottom: 1px solid #000;
+      }
+      table.items th {
+        padding: 4px 6px;
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
+        border-bottom: 1px solid #000;
+        text-align: center;
+        background: #fff;
+        font-weight: 700;
+      }
+      table.items td {
+        padding: 4px 6px;
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
+        border-bottom: none;
+        vertical-align: top;
+        line-height: 1.2;
+      }
+      table.items td.name {
+        min-height: 44px;
+      }
+      table.items th.col-no,
+      table.items td.col-no {
+        width: 20px;
+        text-align: center;
+      }
+      table.items th.col-name,
+      table.items td.col-name {
+        width: 30%;
+      }
+      table.items th.col-qty,
+      table.items td.col-qty {
+        width: 8%;
+        text-align: center;
+      }
+      table.items th.col-unit,
+      table.items td.col-unit {
+        width: 8%;
+        text-align: center;
+      }
+      table.items th.col-price,
+      table.items td.col-price {
+        width: 18%;
+        text-align: right;
+      }
+      table.items th.col-sum,
+      table.items td.col-sum {
+        width: 18%;
+        text-align: right;
+      }
+      table.items th.col-ket,
+      table.items td.col-ket {
+        width: 10%;
+      }
+      .items tfoot td {
+        border-top: 1px solid #000;
+        padding: 8px;
+      }
+      .notes {
+        margin-top: 6px;
+        display: flex;
+        gap: 8px;
+      }
+      .notes .left {
+        width: 60%;
+      }
+      .notes .right {
+        width: 40%;
+        border: 1px solid #000;
+        padding: 6px;
+      }
+      .signatures {
+        margin-top: 24px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .signature {
+        width: 32%;
+        text-align: center;
+      }
+      .signature .line {
+        border-top: 1px solid #000;
+        margin-top: 36px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-head">
+      <div class="header">
+        <div class="title">SHO SHA MART</div>
+        <i>
+          Jl. Pahlawan No.33, RT.10/RW.4, Sukabumi Sel., Kec. Kb. Jeruk, Kota
+          Jakarta Barat, Daerah Khusus Ibukota Jakarta 11560</i
+        >
       </div>
 
-      <table class="items">
-        <thead>
-          <tr>
-            <th class="col-no">NO</th>
-            <th class="col-name">PESANAN</th>
-            <th class="col-qty">QTY</th>
-            <th class="col-unit">SATUAN</th>
-            <th class="col-price">HARGA</th>
-            <th class="col-sum">JUMLAH</th>
-            <th class="col-ket">KET</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHtml}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="4"></td>
-            <td style="text-align: right;">&nbsp;</td>
-            <td style="text-align: right; padding-right: 6px;">Rp ${grandTotal.toLocaleString('id-ID')}</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
+      <div class="header-cust">
+          <p>${date}</p>
+          <i>${printData.value.branch?.code || '-'}</i>
+        <span>Kepada Yth,</span>
+        <div class="title-cust">${printData.value.branch?.name || '-'}</div> 
+        <i>${printData.value.branch?.address || '-'}</i>
+      </div>
+    </div>
 
-      <div class="notes">
-        <div class="left">
-          <div style="font-weight:bold">CATATAN/KETERANGAN:</div>
-          <div style="margin-top:6px">${printData.value.notes || '-'}</div>
-        </div>
-        <div class="right">
-          <strong>PERHATIAN:</strong>
-          <ol style="margin-top:6px;padding-left:18px;font-size:9pt">
-            <li>Surat Jalan ini merupakan bukti resmi penerimaan barang</li>
-            <li>Surat Jalan ini bukan bukti penjualan</li>
-            <li>Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan</li>
-          </ol>
+    <table class="items">
+      <thead>
+        <tr>
+          <th class="col-no">NO</th>
+          <th class="col-name">PESANAN</th>
+          <th class="col-qty">QTY</th>
+          <th class="col-unit">SATUAN</th>
+          <th class="col-price">HARGA</th>
+          <th class="col-sum">JUMLAH</th>
+          <th class="col-ket">KET</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4"></td>
+          <td style="text-align: right">&nbsp;</td>
+          <td style="text-align: right; padding-right: 6px">
+            Rp ${grandTotal.toLocaleString('id-ID')}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="notes">
+      <div class="left">
+        <div style="font-weight: bold">CATATAN/KETERANGAN:</div>
+        <div style="margin-top: 6px">${printData.value.notes || '-'}</div>
+      </div>
+      <div class="right">
+        <strong>PERHATIAN:</strong>
+        <ol style="margin-top: 6px; padding-left: 18px; font-size: 9pt">
+          <li>Surat Jalan ini merupakan bukti resmi penerimaan barang</li>
+          <li>Surat Jalan ini bukti penjualan</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="signatures">
+      <div class="signature">
+        <div>PELANGGAN</div>
+        <div class="line">
+          ${isHutang ? (printData.value.branch?.name || '') : ''}
         </div>
       </div>
-
-      <div class="signatures">
-        <div class="signature">
-          <div>PELANGGAN</div>
-          <div class="line">${isHutang ? (printData.value.branch?.name || '') : ''}</div>
-        </div>
-        <div class="signature">
-          <div>&nbsp;</div>
-          <div class="line">Bagian Pengiriman</div>
-        </div>
-        <div class="signature">
-          <div>SHO-SHA MART</div>
-          <div class="line">${cashierName}</div>
-        </div>
+      <div class="signature">
+        <div>&nbsp;</div>
+        <div class="line">Bagian Pengiriman</div>
       </div>
-
-      <script type="text/javascript">
-        window.onload = function() { window.print(); window.onafterprint = function(){ window.close() } }
-      <\/script>
-    </body>
-    </html>
+      <div class="signature">
+        <div>SHO-SHA MART</div>
+        <div class="line">${cashierName}</div>
+      </div>
+    </div>
+  </body>
+</html>
   `
-  
+
   printWindow.document.write(html)
   printWindow.document.close()
 }
@@ -353,16 +469,13 @@ onMounted(async () => {
       <!-- Left: Product Selection -->
       <Card>
         <div class="p-4 space-y-4">
-          <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">1. PILIH BARANG & TENTUKAN QTY</p>
+          <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">1. PILIH BARANG & TENTUKAN QTY
+          </p>
 
           <!-- Search Products -->
           <div class="space-y-1">
             <Label>Cari Barang</Label>
-            <Input
-              v-model="searchProduct"
-              placeholder="Ketik nama barang..."
-              type="search"
-            />
+            <Input v-model="searchProduct" placeholder="Ketik nama barang..." type="search" />
           </div>
 
           <!-- Product List -->
@@ -371,27 +484,28 @@ onMounted(async () => {
               <span>Menampilkan {{ paginatedProducts.length }} dari {{ filteredProducts.length }}</span>
               <span>Hal {{ currentProductPage }} / {{ totalProductPages || 1 }}</span>
             </div>
-            <div
-              v-for="product in paginatedProducts"
-              :key="product.id"
-              :class="[ 'flex items-center justify-between rounded-lg p-3 ring-1 transition-all text-emerald-500/40', (product.stock ?? 0) > 0 ? 'ring-white/10 hover:ring-emerald-400/50 cursor-pointer text text-red-500/40' : 'ring-red-500/5 cursor-not-allowed opacity-60' ]"
-              @click="product.stock > 0 ? addToCart(product) : null"
-            >
+            <div v-for="product in paginatedProducts" :key="product.id"
+              :class="['flex items-center justify-between rounded-lg p-3 ring-1 transition-all text-emerald-500/40', (product.stock ?? 0) > 0 ? 'ring-white/10 hover:ring-emerald-400/50 cursor-pointer text text-red-500/40' : 'ring-red-500/5 cursor-not-allowed opacity-60']"
+              @click="product.stock > 0 ? addToCart(product) : null">
               <div>
-                <p :class="['text-sm font-semibold ', (product.stock ?? 0) > 0 ? 'text-black' : ' text-red-500/40']">{{ product.name }}</p>
+                <p :class="['text-sm font-semibold ', (product.stock ?? 0) > 0 ? 'text-black' : ' text-red-500/40']">{{
+                  product.name }}</p>
                 <p class="text-xs text-slate-400">
                   Stok: {{ product.stock }} {{ product.unit }} • Rp{{ product.price.toLocaleString('id-ID') }}
                 </p>
               </div>
-              <Button variant="ghost" size="sm" class="text-emerald-200" :disabled="(product.stock ?? 0) <= 0">+ Tambah</Button>
+              <Button variant="ghost" size="sm" class="text-emerald-200" :disabled="(product.stock ?? 0) <= 0">+
+                Tambah</Button>
             </div>
             <div v-if="filteredProducts.length === 0" class="text-center py-4 text-sm text-slate-400">
               {{ searchProduct ? 'Barang tidak ditemukan' : 'Cari barang untuk menambahkan ke keranjang' }}
             </div>
             <div v-else class="flex items-center justify-between pt-2">
-              <Button variant="ghost" size="sm" :disabled="currentProductPage <= 1" @click="currentProductPage--">Sebelumnya</Button>
+              <Button variant="ghost" size="sm" :disabled="currentProductPage <= 1"
+                @click="currentProductPage--">Sebelumnya</Button>
               <div class="text-xs text-slate-500">5 per halaman</div>
-              <Button variant="ghost" size="sm" :disabled="currentProductPage >= totalProductPages" @click="currentProductPage++">Berikutnya</Button>
+              <Button variant="ghost" size="sm" :disabled="currentProductPage >= totalProductPages"
+                @click="currentProductPage++">Berikutnya</Button>
             </div>
           </div>
         </div>
@@ -420,71 +534,44 @@ onMounted(async () => {
             <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">KERANJANG BELANJA</p>
 
             <div class="space-y-2 max-h-64 overflow-y-auto">
-              <div
-                v-for="(item, idx) in cartItems"
-                :key="idx"
-                class="flex flex-col gap-2 rounded-lg bg-emerald-600/50 p-2 ring-1 ring-white/10"
-              >
+              <div v-for="(item, idx) in cartItems" :key="idx"
+                class="flex flex-col gap-2 rounded-lg bg-emerald-600/50 p-2 ring-1 ring-white/10">
                 <div class="flex items-start justify-between">
                   <div class="flex-1">
                     <p class="text-sm text-white font-semibold">{{ item.name }}</p>
                     <p class="text-xs text-white">{{ item.unit }}</p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="text-rose-400"
-                    @click="removeItem(idx)"
-                  >
+                  <Button variant="ghost" size="sm" class="text-rose-400" @click="removeItem(idx)">
                     ✕
                   </Button>
                 </div>
-                
+
                 <div class="flex items-center gap-2">
                   <div class="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="h-6 w-6 p-0 text-slate-400"
-                      @click="updateQty(idx, -1)"
-                    >
+                    <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-slate-400" @click="updateQty(idx, -1)">
                       −
                     </Button>
-                    <input
-                      :value="item.qty"
-                      type="number"
-                      min="1"
+                    <input :value="item.qty" type="number" min="1"
                       class="w-14 h-6 bg-slate-700 text-center text-white text-xs rounded border border-slate-600"
-                      @change="form.items[idx].qty = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="h-6 w-6 p-0 text-slate-400"
-                      @click="updateQty(idx, 1)"
-                    >
+                      @change="form.items[idx].qty = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)" />
+                    <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-slate-400" @click="updateQty(idx, 1)">
                       +
                     </Button>
                   </div>
-                  
+
                   <div class="flex-1">
-                    <input
-                      v-model.number="form.items[idx].price"
-                      type="number"
-                      :disabled="!canEditPrice"
+                    <input v-model.number="form.items[idx].price" type="number" :disabled="!canEditPrice"
                       :class="canEditPrice ? 'bg-slate-700' : 'bg-slate-800/50 opacity-60'"
-                      class="w-full h-6 text-right text-white text-xs rounded border border-slate-600 px-2"
-                      min="0"
-                      step="100"
-                    />
+                      class="w-full h-6 text-right text-white text-xs rounded border border-slate-600 px-2" min="0"
+                      step="100" />
                   </div>
                 </div>
-                
+
                 <div class="text-right text-xs text-emerald-400 font-semibold">
                   = Rp{{ (item.qty * item.price).toLocaleString('id-ID') }}
                 </div>
               </div>
-              
+
               <div v-if="form.items.length === 0" class="text-center py-6 text-sm text-slate-400">
                 Keranjang kosong
               </div>
@@ -504,7 +591,7 @@ onMounted(async () => {
         <Card>
           <div class="p-4 space-y-3">
             <p class="text-sm font-semibold text-black border-b border-slate-700 pb-3">3. PILIH METODE PEMBAYARAN</p>
-            
+
             <div class="space-y-1">
               <Label>Metode Pembayaran</Label>
               <Select v-model="form.payment_method">
@@ -516,17 +603,12 @@ onMounted(async () => {
             <!-- Cash Payment Amount (only show if payment_method is 'cash') -->
             <div v-if="form.payment_method === 'cash'" class="space-y-1">
               <Label>Jumlah Bayar</Label>
-              <Input
-                v-model.number="form.jumlah_bayar"
-                type="number"
-                placeholder="0"
-                min="0"
-                step="1000"
-              />
+              <Input v-model.number="form.jumlah_bayar" type="number" placeholder="0" min="0" step="1000" />
             </div>
 
             <!-- Change Display (only show if payment_method is 'cash' and payment is valid) -->
-            <div v-if="form.payment_method === 'cash'" class="rounded-lg bg-emerald-500/10 border border-emerald-400/30 p-3">
+            <div v-if="form.payment_method === 'cash'"
+              class="rounded-lg bg-emerald-500/10 border border-emerald-400/30 p-3">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-semibold text-emerald-200">Kembalian</span>
                 <span class="text-lg font-bold text-emerald-400">Rp{{ kembalian.toLocaleString('id-ID') }}</span>
@@ -540,37 +622,22 @@ onMounted(async () => {
 
             <div class="space-y-1">
               <Label>Tanggal Transaksi</Label>
-              <input
-                v-model="form.created_at"
-                type="date"
-                class="w-full h-10 rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400"
-              />
+              <input v-model="form.created_at" type="date"
+                class="w-full h-10 rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400" />
             </div>
 
             <div v-if="form.payment_method === 'hutang'" class="space-y-1">
               <Label>Catatan (Opsional)</Label>
-              <textarea
-                v-model="form.notes"
-                rows="2"
-                placeholder="Catatan tambahan..."
-                class="w-full rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400"
-              />
+              <textarea v-model="form.notes" rows="2" placeholder="Catatan tambahan..."
+                class="w-full rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400" />
             </div>
 
             <!-- Checkout Button -->
             <div class="space-y-2 pt-2">
-              <Button
-                :disabled="saving || !isValid"
-                class="w-full"
-                @click="submit"
-              >
+              <Button :disabled="saving || !isValid" class="w-full" @click="submit">
                 {{ saving ? 'Menyimpan...' : 'Checkout & Cetak' }}
               </Button>
-              <Button
-                variant="ghost"
-                class="w-full text-slate-400"
-                @click="form.items = []"
-              >
+              <Button variant="ghost" class="w-full text-slate-400" @click="form.items = []">
                 Bersihkan Keranjang
               </Button>
             </div>
@@ -580,11 +647,8 @@ onMounted(async () => {
     </div>
 
     <!-- Print Dialog -->
-    <div
-      v-if="showPrintDialog"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click="closePrintDialog"
-    >
+    <div v-if="showPrintDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click="closePrintDialog">
       <Card class="max-w-md" @click.stop>
         <div class="p-6 space-y-4">
           <h3 class="text-lg font-semibold text-white">Transaksi Berhasil!</h3>
