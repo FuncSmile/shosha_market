@@ -3,6 +3,11 @@ directories:
   buildResources: build
 appId: com.shosha.mart
 productName: ShoshaMart POS
+publish:
+  provider: github
+  owner: FuncSmile
+  repo: shosha_market
+  releaseType: draft
 files:
   - filter:
       - main.js
@@ -28,4 +33,9 @@ win:
   target:
     - nsis
   artifactName: ${productName}-${version}-Setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  include: build/installer.nsh
 electronVersion: 30.0.9
