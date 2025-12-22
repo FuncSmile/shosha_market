@@ -58,9 +58,11 @@ jobs:
           cp backend/server electron-main/resources/backend/
       
       - name: Build Electron App (Linux)
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
-          npm run dist:linux
+          npx electron-builder --linux AppImage --publish=onTag
       
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
@@ -136,9 +138,11 @@ jobs:
           Copy-Item "backend/server.exe" -Destination "electron-main/resources/backend/" -Force
       
       - name: Build Electron App (Windows)
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
-          npm run dist:win
+          npx electron-builder --win nsis --publish=onTag
       
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
@@ -195,9 +199,12 @@ jobs:
           cp backend/server electron-main/resources/backend/
       
       - name: Build Electron App (macOS)
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
-          npm run build:renderer && npx electron-builder --mac --publish never
+          npm run build:renderer
+          npx electron-builder --mac --publish=onTag
       
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4

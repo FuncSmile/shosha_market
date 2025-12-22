@@ -18,8 +18,33 @@ async function createWindow() {
     },
   })
 
-  // Setup auto-update
-  setupAutoUpdate(win)
+  // Setup auto-update, pass a stop callback so updater can stop backend before install
+  setupAutoUpdate(win, async () => {
+    return new Promise((resolve) => {
+      try {
+        if (goProcess) {
+          console.log('Stopping backend process for update...')
+          // ask process to terminate gracefully, then force after timeout
+          try { goProcess.kill('SIGTERM') } catch (e) { try { goProcess.kill() } catch (ee) {} }
+          // wait up to 3s for it to exit
+          const checker = setInterval(() => {
+            // Note: we can't reliably inspect process state cross-platform, but assume exit event will fire
+          }, 200)
+          setTimeout(() => {
+            try { goProcess.kill('SIGKILL') } catch (e) {}
+            clearInterval(checker)
+            // give a moment for handles to close
+            setTimeout(resolve, 400)
+          }, 1600)
+        } else {
+          resolve()
+        }
+      } catch (e) {
+        console.error('Error stopping backend before update:', e)
+        resolve()
+      }
+    })
+  })
 
   const devURL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
   
