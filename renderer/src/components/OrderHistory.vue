@@ -96,7 +96,7 @@ function printReceipt() {
     month: 'long',
     year: 'numeric'
   })
-  
+
 
   let itemsHtml = ''
   printData.value.items.forEach((item: any, idx: number) => {
@@ -112,154 +112,234 @@ function printReceipt() {
       </tr>
     `
   })
-  const totalWeight = printData.value.items.reduce((s:any,it:any)=>{
-    const w = Number(it.weight || 0)
-    return s + (w * (Number(it.qty)||0))
-  },0)
-  const totalPrice = printData.value.items.reduce((s:any,it:any)=>{
-    const p = Number(it.price || 0)
-    const q = Number(it.qty || 0)
-    return s + (p * q)
-  },0)
-  
+
+  const grandTotal = printData.value.items.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
+  const isHutang = printData.value.payment_method === 'hutang'
+  const cashierName = ''
+
 
   const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>SURAT JALAN</title>
-      <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        @page{size:A4;margin:12mm}
-        body{font-family:Arial,Helvetica,sans-serif;font-size:10pt;padding:8mm;color:#000}
-        .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
-        .title{font-size:20pt;font-weight:800;text-align:right}
-        .left-block{width:60%}
-        .right-block{width:35%;text-align:right}
-        .meta{margin-top:6px}
-        .meta table{width:100%;border-collapse:collapse}
-        .meta td{padding:2px 0;font-size:9pt}
-        .items{width:100%;border-collapse:collapse;margin-top:8px;border-top:1px solid #000;border-bottom:1px solid #000}
-        /* Vertical separators only; no horizontal lines between item rows */
-        .items th{padding:4px 6px;border-left:1px solid #000;border-right:1px solid #000;border-bottom:1px solid #000;text-align:center;background:#fff;font-weight:700}
-        .items td{padding:4px 6px;border-left:1px solid #000;border-right:1px solid #000;border-bottom:none;vertical-align:top;line-height:1.2}
-        .items td.name{min-height:44px}
-        /* column widths to avoid overly wide name column */
-        .items th.col-no,.items td.col-no{width:40px;text-align:center}
-        .items th.col-name,.items td.col-name{width:46%}
-        .items th.col-qty,.items td.col-qty{width:8%;text-align:center}
-        .items th.col-berat,.items td.col-berat{width:10%;text-align:center}
-        .items th.col-jmlberat,.items td.col-jmlberat{width:10%;text-align:center}
-        .items th.col-ket,.items td.col-ket{width:12%}
-        /* total row shows a top border */
-        .items tfoot td{border-top:1px solid #000;padding:8px}
-        .small{font-size:9pt}
-        .notes{margin-top:6px;display:flex;gap:8px}
-        .notes .left{width:60%}
-        .notes .right{width:40%;border:1px solid #000;padding:6px}
-        .signatures{margin-top:12px;display:flex;justify-content:space-between}
-        .signature{width:32%;text-align:center}
-        .signature .line{border-top:1px solid #000;margin-top:36px}
-      </style>
-    </head>
-    <body>
+     <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>${isHutang ? 'Surat Jalan' : 'Struk Pembayaran'}</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 9pt;
+        padding: 8mm;
+        color: #000;
+      }
+      .container-head {
+        display: flex;
+        justify-content: space-between;
+      }
+      .header {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        margin-bottom: 6px;
+        width: 40%;
+      }
+      .header-cust {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-end;
+        margin-bottom: 6px;
+        width: 40%;
+      }
+      .title {
+        font-size: 20pt;
+        font-weight: 800;
+        text-align: center;
+      }
+        .title-cust {
+            font-size: 14pt;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+      table.items {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        border-top: 1px solid #000;
+        border-bottom: 1px solid #000;
+      }
+      table.items th {
+        padding: 4px 6px;
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
+        border-bottom: 1px solid #000;
+        text-align: center;
+        background: #fff;
+        font-weight: 700;
+      }
+      table.items td {
+        padding: 4px 6px;
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
+        border-bottom: none;
+        vertical-align: top;
+        line-height: 1.2;
+      }
+      table.items td.name {
+        min-height: 44px;
+      }
+      table.items th.col-no,
+      table.items td.col-no {
+        width: 20px;
+        text-align: center;
+      }
+      table.items th.col-name,
+      table.items td.col-name {
+        width: 30%;
+      }
+      table.items th.col-qty,
+      table.items td.col-qty {
+        width: 8%;
+        text-align: center;
+      }
+      table.items th.col-unit,
+      table.items td.col-unit {
+        width: 8%;
+        text-align: center;
+      }
+      table.items th.col-price,
+      table.items td.col-price {
+        width: 18%;
+        text-align: right;
+      }
+      table.items th.col-sum,
+      table.items td.col-sum {
+        width: 18%;
+        text-align: right;
+      }
+      table.items th.col-ket,
+      table.items td.col-ket {
+        width: 10%;
+      }
+      .items tfoot td {
+        border-top: 1px solid #000;
+        padding: 8px;
+      }
+      .notes {
+        margin-top: 6px;
+        display: flex;
+        gap: 8px;
+      }
+      .notes .left {
+        width: 60%;
+      }
+      .notes .right {
+        width: 40%;
+        border: 1px solid #000;
+        padding: 6px;
+      }
+      .signatures {
+        margin-top: 24px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .signature {
+        width: 32%;
+        text-align: center;
+      }
+      .signature .line {
+        border-top: 1px solid #000;
+        margin-top: 36px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-head">
       <div class="header">
-        <div class="left-block">
-          <div class="small">Kepada Yth.</div>
-          <div style="margin-top:6px">
-            <table>
-              <tr><td style="width:80px">Nama</td><td>: ${printData.value.branch?.name || '-'}</td></tr>
-              <tr><td>No. Telp</td><td>: -</td></tr>
-              <tr><td>Alamat</td><td>: ${printData.value.branch?.address || '-'}</td></tr>
-            </table>
-          </div>
-        </div>
-        <div class="right-block">
-          <div class="title">SURAT JALAN</div>
-          <div style="margin-top:8px;text-align:right" class="small">
-            <div>No. Invoice: ${printData.value.receipt_no || 'Auto'}</div>
-            <div>Tanggal: ${date}</div>
-            <div>Expedisi: -</div>
-          </div>
-        </div>
+        <div class="title">SHO SHA MART</div>
+        <i>
+          Jl. Pahlawan No.33, RT.10/RW.4, Sukabumi Sel., Kec. Kb. Jeruk, Kota
+          Jakarta Barat, Daerah Khusus Ibukota Jakarta 11560</i
+        >
       </div>
 
-      <table class="items">
-        <thead>
-          <tr>
-              <th class="col-no">No</th>
-              <th class="col-name">Nama Barang</th>
-              <th class="col-qty">Qty</th>
-              <th class="col-price">Harga</th>
-              <th class="col-total">Total Harga</th>
-              <th class="col-ket">Keterangan</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${printData.value.items.map((item:any, idx:number)=>{
-            const harga = Number(item.price || 0);
-            const subtotal = harga * (Number(item.qty) || 0);
-            return `
-              <tr>
-                <td class="text-center">${idx+1}</td>
-                <td class="name">${item.name || item.product_id}</td>
-                <td class="text-center">${item.qty}</td>
-                <td class="text-right">Rp ${harga.toLocaleString('id-ID')}</td>
-                <td class="text-right">Rp ${subtotal.toLocaleString('id-ID')}</td>
-                <td></td>
-              </tr>
-            `
-          }).join('')}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="4">Total Harga</td>
-              <td style="text-align: right;">Rp ${totalPrice.toLocaleString('id-ID')}</td>
-              <td colspan="3" style="text-align: right;">&nbsp;</td>
-            </tr>
-            <tr>
-              <td colspan="2">Total Berat</td>
-              <td colspan="6" style="text-align: left;">${totalWeight} Kg</td>
-            </tr>
-          </tfoot>
-        </table>
-      </table>
+      <div class="header-cust">
+          <p>${date}</p>
+          <i>${printData.value.branch?.code || '-'}</i>
+        <span>Kepada Yth,</span>
+        <div class="title-cust">${printData.value.branch?.name || '-'}</div> 
+        <i>${printData.value.branch?.address || '-'}</i>
+      </div>
+    </div>
 
-      <div class="notes">
-        <div class="left small">
-          <div>Catatan:</div>
-          <div style="margin-top:6px">${printData.value.notes || '-'}</div>
-        </div>
-        <div class="right small">
-          <strong>PERHATIAN:</strong>
-          <ol style="margin-top:6px;padding-left:18px">
-            <li>Surat Jalan ini merupakan bukti resmi penerimaan barang</li>
-            <li>Surat Jalan ini bukan bukti penjualan</li>
-            <li>Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan</li>
-          </ol>
+    <table class="items">
+      <thead>
+        <tr>
+          <th class="col-no">NO</th>
+          <th class="col-name">PESANAN</th>
+          <th class="col-qty">QTY</th>
+          <th class="col-unit">SATUAN</th>
+          <th class="col-price">HARGA</th>
+          <th class="col-sum">JUMLAH</th>
+          <th class="col-ket">KET</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4"></td>
+          <td style="text-align: right">&nbsp;</td>
+          <td style="text-align: right; padding-right: 6px">
+            Rp ${grandTotal.toLocaleString('id-ID')}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="notes">
+      <div class="left">
+        <div style="font-weight: bold">CATATAN/KETERANGAN:</div>
+        <div style="margin-top: 6px">${printData.value.notes || '-'}</div>
+      </div>
+      <div class="right">
+        <strong>PERHATIAN:</strong>
+        <ol style="margin-top: 6px; padding-left: 18px; font-size: 9pt">
+          <li>Surat Jalan ini merupakan bukti resmi penerimaan barang</li>
+          <li>Surat Jalan ini bukti penjualan</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="signatures">
+      <div class="signature">
+        <div>PELANGGAN</div>
+        <div class="line">
+          ${isHutang ? (printData.value.branch?.name || '') : ''}
         </div>
       </div>
-
-      <div class="signatures">
-        <div class="signature">
-          <div class="line">Penerima / Pembeli</div>
-        </div>
-        <div class="signature">
-          <div>&nbsp;</div>
-          <div class="line">Bagian Pengiriman</div>
-        </div>
-        <div class="signature">
-          <div>&nbsp;</div>
-          <div class="line">Petugas Gudang</div>
-        </div>
+      <div class="signature">
+        <div>&nbsp;</div>
+        <div class="line">Bagian Pengiriman</div>
       </div>
-
-      <script>
-        window.onload=function(){window.print();window.onafterprint=function(){window.close()}}
-      <\/script>
-    </body>
-    </html>
+      <div class="signature">
+        <div>SHO-SHA MART</div>
+        <div class="line">${cashierName}</div>
+      </div>
+    </div>
+  </body>
+</html>
   `
   printWindow.document.write(html)
   printWindow.document.close()
@@ -349,7 +429,8 @@ onMounted(async () => {
           </div>
           <div class="text-sm font-bold">
             <p><span class="font-semibold">Cabang:</span> {{ selected?.branch_name || selected?.branch_id }}</p>
-            <p><span class="font-semibold">Tanggal:</span> {{ selected?.created_at ? fmtDate(selected!.created_at) : '-' }}</p>
+            <p><span class="font-semibold">Tanggal:</span> {{ selected?.created_at ? fmtDate(selected!.created_at) : '-'
+            }}</p>
             <p><span class="font-semibold">Invoice:</span> {{ selected?.receipt_no }}</p>
             <p><span class="font-semibold">Metode:</span> {{ selected?.payment_method }}</p>
           </div>

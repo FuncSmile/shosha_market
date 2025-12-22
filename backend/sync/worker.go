@@ -258,30 +258,49 @@ func (w *Worker) download(ctx context.Context) error {
 	saveOptsSaleItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "updated_at", "created_at"})}
 	saveOptsOpnames := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "updated_at", "created_at"})}
 	saveOptsOpItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "updated_at", "created_at"})}
-	if len(data.Branches) > 0 {
-		res := w.db.Clauses(saveOptsBranches).Create(&data.Branches)
-		log.Printf("[SYNC] downloaded branches: %d, error: %v", len(data.Branches), res.Error)
-	}
-	if len(data.Products) > 0 {
-		res := w.db.Clauses(saveOptsProducts).Create(&data.Products)
-		log.Printf("[SYNC] downloaded products: %d, error: %v", len(data.Products), res.Error)
-	}
-	if len(data.Sales) > 0 {
-		res := w.db.Clauses(saveOptsSales).Create(&data.Sales)
-		log.Printf("[SYNC] downloaded sales: %d, error: %v", len(data.Sales), res.Error)
-	}
-	if len(data.SaleItems) > 0 {
-		res := w.db.Clauses(saveOptsSaleItems).Create(&data.SaleItems)
-		log.Printf("[SYNC] downloaded sale_items: %d, error: %v", len(data.SaleItems), res.Error)
-	}
-	if len(data.StockOpnames) > 0 {
-		res := w.db.Clauses(saveOptsOpnames).Create(&data.StockOpnames)
-		log.Printf("[SYNC] downloaded stock_opnames: %d, error: %v", len(data.StockOpnames), res.Error)
-	}
-	if len(data.StockOpnameItems) > 0 {
-		res := w.db.Clauses(saveOptsOpItems).Create(&data.StockOpnameItems)
-		log.Printf("[SYNC] downloaded stock_opname_items: %d, error: %v", len(data.StockOpnameItems), res.Error)
-	}
+	       // Set synced=true untuk semua data hasil download
+	       for i := range data.Branches {
+		       data.Branches[i].Synced = true
+	       }
+	       for i := range data.Products {
+		       data.Products[i].Synced = true
+	       }
+	       for i := range data.Sales {
+		       data.Sales[i].Synced = true
+	       }
+	       for i := range data.SaleItems {
+		       data.SaleItems[i].Synced = true
+	       }
+	       for i := range data.StockOpnames {
+		       data.StockOpnames[i].Synced = true
+	       }
+	       for i := range data.StockOpnameItems {
+		       data.StockOpnameItems[i].Synced = true
+	       }
+	       if len(data.Branches) > 0 {
+		       res := w.db.Clauses(saveOptsBranches).Create(&data.Branches)
+		       log.Printf("[SYNC] downloaded branches: %d, error: %v", len(data.Branches), res.Error)
+	       }
+	       if len(data.Products) > 0 {
+		       res := w.db.Clauses(saveOptsProducts).Create(&data.Products)
+		       log.Printf("[SYNC] downloaded products: %d, error: %v", len(data.Products), res.Error)
+	       }
+	       if len(data.Sales) > 0 {
+		       res := w.db.Clauses(saveOptsSales).Create(&data.Sales)
+		       log.Printf("[SYNC] downloaded sales: %d, error: %v", len(data.Sales), res.Error)
+	       }
+	       if len(data.SaleItems) > 0 {
+		       res := w.db.Clauses(saveOptsSaleItems).Create(&data.SaleItems)
+		       log.Printf("[SYNC] downloaded sale_items: %d, error: %v", len(data.SaleItems), res.Error)
+	       }
+	       if len(data.StockOpnames) > 0 {
+		       res := w.db.Clauses(saveOptsOpnames).Create(&data.StockOpnames)
+		       log.Printf("[SYNC] downloaded stock_opnames: %d, error: %v", len(data.StockOpnames), res.Error)
+	       }
+	       if len(data.StockOpnameItems) > 0 {
+		       res := w.db.Clauses(saveOptsOpItems).Create(&data.StockOpnameItems)
+		       log.Printf("[SYNC] downloaded stock_opname_items: %d, error: %v", len(data.StockOpnameItems), res.Error)
+	       }
 
 	if data.LastSyncAt != nil {
 		_ = MarkSync(w.db, *data.LastSyncAt)
