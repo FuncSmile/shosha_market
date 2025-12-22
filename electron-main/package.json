@@ -28,6 +28,7 @@
     },
     "files": [
       "main.js",
+      "updater.js",
       "package.json",
       {
         "from": "../renderer/dist",
