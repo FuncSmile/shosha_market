@@ -6,21 +6,21 @@ publish:
   provider: github
   owner: FuncSmile
   repo: shosha_market
-  releaseType: draft
 files:
   - main.js
   - updater.js
   - package.json
+asarUnpack:
+  - renderer/**
+extraResources:
   - from: ../renderer/dist
     to: renderer/dist
     filter: ['**/*']
-extraResources:
   - from: ../backend
     to: backend
     filter:
       - server
       - server.exe
-      - offline.db
       - .env
 linux:
   target:

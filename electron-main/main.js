@@ -60,19 +60,9 @@ async function createWindow() {
   // Determine correct path based on whether app is packaged
   let distPath
   if (app.isPackaged) {
-    // When packaged, electron-builder may put `renderer/dist` inside the asar
-    // (accessible via __dirname) OR as a resource under `process.resourcesPath/renderer/dist`.
-    const resourceRenderer = path.join(process.resourcesPath, 'renderer', 'dist', 'index.html')
-    const asarRenderer = path.join(__dirname, 'renderer', 'dist', 'index.html')
-
-    // Prefer resource path if present (common when files are added as external resources)
-    if (fs.existsSync(resourceRenderer)) {
-      distPath = resourceRenderer
-      console.log('Loading renderer from resourcesPath:', resourceRenderer)
-    } else {
-      distPath = asarRenderer
-      console.log('Loading renderer from asar (__dirname):', asarRenderer)
-    }
+    // When packaged, renderer/dist is in extraResources under process.resourcesPath
+    distPath = path.join(process.resourcesPath, 'renderer', 'dist', 'index.html')
+    console.log('Loading renderer from resourcesPath:', distPath)
   } else {
     // In development
     distPath = path.join(__dirname, '../renderer/dist/index.html')
@@ -126,6 +116,12 @@ async function spawnBackend() {
     console.log(`Backend already running on port ${port}, skip spawn.`)
     return
   }
+
+  // Set DB path to writable userData directory
+  const userDataPath = app.getPath('userData')
+  const dbPath = path.join(userDataPath, 'offline.db')
+  process.env.POS_DB_PATH = dbPath
+  console.log('Backend DB path:', dbPath)
 
   let backendCwd
   let backendBinary

@@ -3,7 +3,8 @@ name: Build Electron App (Multi-Platform)
 on:
   push:
     branches: [ main, develop, fadli/dev ]
-    tags: [ 'v*' ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -62,6 +63,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
+          if [ -z "$GH_TOKEN" ]; then
+            echo "ERROR: GH_TOKEN is not set"
+            exit 1
+          fi
+          echo "GH_TOKEN is set (length: ${#GH_TOKEN})"
           npx electron-builder --linux AppImage --publish=onTag
       
       - name: Upload AppImage
@@ -136,6 +142,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
+          if ($null -eq $env:GH_TOKEN -or $env:GH_TOKEN -eq "") {
+            Write-Error "ERROR: GH_TOKEN is not set"
+            exit 1
+          }
+          Write-Host "GH_TOKEN is set (length: $($env:GH_TOKEN.Length))"
           npx electron-builder --win nsis --publish=onTag
       
       - name: Upload Windows Installer
@@ -191,6 +202,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
+          if [ -z "$GH_TOKEN" ]; then
+            echo "ERROR: GH_TOKEN is not set"
+            exit 1
+          fi
+          echo "GH_TOKEN is set (length: ${#GH_TOKEN})"
           npm run build:renderer
           npx electron-builder --mac --publish=onTag
       
