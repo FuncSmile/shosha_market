@@ -1,6 +1,6 @@
 {
   "name": "electron-main",
-  "version": "1.0.1",
+  "version": "1.0.10",
   "private": true,
   "main": "main.js",
   "type": "commonjs",

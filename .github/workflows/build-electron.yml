@@ -9,6 +9,9 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+permissions:
+  contents: write  # Required for electron-builder to create releases and upload assets
+
 jobs:
   build-linux:
     name: Build Linux (AppImage)
