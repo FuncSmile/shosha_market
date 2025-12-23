@@ -27,13 +27,12 @@
     "directories": {
       "output": "release"
     },
-    "publish": [
+    "files": [
+      "**/*", 
       {
-        "provider": "github",
-        "owner": "FuncSmile",
-        "repo": "shosha_market",
-        "private": true,
-        "releaseType": "release"
+        "from": "../renderer/dist",
+        "to": "renderer/dist",
+        "filter": ["**/*"]
       }
     ],
     "linux": {
