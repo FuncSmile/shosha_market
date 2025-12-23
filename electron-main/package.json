@@ -1,6 +1,7 @@
 {
   "name": "electron-main",
   "version": "1.0.11",
+  "private": true,
   "main": "main.js",
   "type": "commonjs",
   "description": "Shosha Mart POS desktop (Electron + Vue + Go sidecar)",
