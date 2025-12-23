@@ -5,6 +5,15 @@ const fs = require('fs')
 const net = require('net')
 const { setupAutoUpdate } = require('./updater')
 
+// Global handlers to avoid unhandled promise rejections and uncaught exceptions
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UnhandledPromiseRejection:', reason && reason.stack ? reason.stack : reason)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('UncaughtException:', err && err.stack ? err.stack : err)
+})
+
 let goProcess
 
 async function createWindow() {
@@ -51,9 +60,19 @@ async function createWindow() {
   // Determine correct path based on whether app is packaged
   let distPath
   if (app.isPackaged) {
-    // In packaged app, files are in app.asar or app.asar directory
-    // renderer/dist is bundled inside asar at /renderer/dist/index.html
-    distPath = path.join(__dirname, 'renderer', 'dist', 'index.html')
+    // When packaged, electron-builder may put `renderer/dist` inside the asar
+    // (accessible via __dirname) OR as a resource under `process.resourcesPath/renderer/dist`.
+    const resourceRenderer = path.join(process.resourcesPath, 'renderer', 'dist', 'index.html')
+    const asarRenderer = path.join(__dirname, 'renderer', 'dist', 'index.html')
+
+    // Prefer resource path if present (common when files are added as external resources)
+    if (fs.existsSync(resourceRenderer)) {
+      distPath = resourceRenderer
+      console.log('Loading renderer from resourcesPath:', resourceRenderer)
+    } else {
+      distPath = asarRenderer
+      console.log('Loading renderer from asar (__dirname):', asarRenderer)
+    }
   } else {
     // In development
     distPath = path.join(__dirname, '../renderer/dist/index.html')

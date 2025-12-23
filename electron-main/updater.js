@@ -9,7 +9,17 @@ const { dialog } = require('electron')
  * - stopCallback: optional async function that attempts to stop background processes (like backend server)
  */
 function setupAutoUpdate(mainWindow, stopCallback) {
-  autoUpdater.checkForUpdatesAndNotify()
+  // Run a single update check and catch any rejection to avoid
+  // unhandled promise rejections when GitHub metadata is missing.
+  // electron-updater emits 'error' for many cases, but the promise
+  // returned here can also reject (e.g. 404 when artifacts missing).
+  try {
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.error('checkForUpdatesAndNotify failed:', err && err.stack ? err.stack : err)
+    })
+  } catch (e) {
+    console.error('autoUpdater.checkForUpdatesAndNotify sync error:', e)
+  }
 
   autoUpdater.on('update-available', () => {
     dialog.showMessageBox(mainWindow, {
@@ -51,6 +61,20 @@ function setupAutoUpdate(mainWindow, stopCallback) {
           console.error('quitAndInstall error:', e)
         }
       }, 800)
+    }
+  })
+
+  autoUpdater.on('error', (err) => {
+    console.error('autoUpdater error:', err && err.stack ? err.stack : err)
+    try {
+      // show non-blocking message so user knows update check failed
+      dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Update Error',
+        message: `Auto-update check failed: ${err && err.message ? err.message : String(err)}`,
+      })
+    } catch (e) {
+      // ignore
     }
   })
 }

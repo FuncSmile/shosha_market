@@ -469,7 +469,7 @@ onMounted(async () => {
       <!-- Left: Product Selection -->
       <Card>
         <div class="p-4 space-y-4">
-          <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">1. PILIH BARANG & TENTUKAN QTY
+          <p class="text-sm font-semibold  border-b border-slate-700 pb-3">1. PILIH BARANG & TENTUKAN QTY
           </p>
 
           <!-- Search Products -->
@@ -516,7 +516,7 @@ onMounted(async () => {
         <!-- Step 2: Branch Selection -->
         <Card>
           <div class="p-4 space-y-3">
-            <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">2. PILIH CABANG PEMBELI</p>
+            <p class="text-sm font-semibold  border-b border-slate-700 pb-3">2. PILIH CABANG PEMBELI</p>
             <div class="space-y-1">
               <Label>Cabang</Label>
               <BranchSelect v-model="form.branch_id" :branches="branches" />
@@ -531,7 +531,7 @@ onMounted(async () => {
         <!-- Cart Items -->
         <Card>
           <div class="p-4 space-y-4">
-            <p class="text-sm font-semibold text-slate-300 border-b border-slate-700 pb-3">KERANJANG BELANJA</p>
+            <p class="text-sm font-semibold  border-b border-slate-700 pb-3">KERANJANG BELANJA</p>
 
             <div class="space-y-2 max-h-64 overflow-y-auto">
               <div v-for="(item, idx) in cartItems" :key="idx"
@@ -623,13 +623,13 @@ onMounted(async () => {
             <div class="space-y-1">
               <Label>Tanggal Transaksi</Label>
               <input v-model="form.created_at" type="date"
-                class="w-full h-10 rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400" />
+                class="w-full border border-slate-300 h-10 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400" />
             </div>
 
             <div v-if="form.payment_method === 'hutang'" class="space-y-1">
               <Label>Catatan (Opsional)</Label>
               <textarea v-model="form.notes" rows="2" placeholder="Catatan tambahan..."
-                class="w-full rounded-lg bg-slate-800/70 px-3 py-2 text-sm text-white ring-1 ring-white/10 focus:ring-emerald-400" />
+                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400" />
             </div>
 
             <!-- Checkout Button -->
@@ -652,7 +652,7 @@ onMounted(async () => {
       <Card class="max-w-md" @click.stop>
         <div class="p-6 space-y-4">
           <h3 class="text-lg font-semibold text-white">Transaksi Berhasil!</h3>
-          <p class="text-sm text-slate-300">
+          <p class="text-sm ">
             {{ printData?.payment_method === 'hutang' ? 'Surat jalan siap dicetak' : 'Struk pembayaran siap dicetak' }}
           </p>
           <div class="flex gap-2">
