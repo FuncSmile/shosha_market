@@ -71,8 +71,8 @@ onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
 
-// Use Toaster from vue-sonner (shadcn CLI integrates Sonner)
-import { Toaster } from './components/ui/sonner'
+import Toaster from './components/ui/Toaster.vue'
+
 </script>
 
 <template>
