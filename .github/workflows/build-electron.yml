@@ -3,7 +3,8 @@ name: Build Electron App (Multi-Platform)
 on:
   push:
     branches: [ main, develop, fadli/dev ]
-    tags: [ 'v*' ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
