@@ -6,7 +6,6 @@ publish:
   provider: github
   owner: FuncSmile
   repo: shosha_market
-  releaseType: draft
 files:
   - main.js
   - updater.js
