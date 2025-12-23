@@ -2,226 +2,154 @@ name: Build Electron App (Multi-Platform)
 
 on:
   push:
-    branches: [ main, develop, fadli/dev ]
+    branches: [ main, develop ]
     tags:
       - 'v*'
-  pull_request:
-    branches: [ main, develop ]
   workflow_dispatch:
 
 permissions:
-  contents: write  # Required for electron-builder to create releases and upload assets
+  contents: write
 
 jobs:
-  build-linux:
-    name: Build Linux (AppImage)
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          cache-dependency-path: backend/go.sum
-      
-      - name: Install dependencies (with retry)
-        run: |
-          npm --prefix renderer install
-          n=0
-          until [ $n -ge 3 ]; do
-            npm --prefix electron-main install && break
-            n=$((n+1))
-            echo "Retry $n/3 for electron-main npm install..."
-            sleep 20
-          done
-          if [ $n -ge 3 ]; then
-            echo "electron-main npm install failed after retries"
-            exit 1
-          fi
-        env:
-          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
-          ELECTRON_CUSTOM_DIR: v30.0.9
-      
-      - name: Build backend
-        run: |
-          cd backend
-          go mod tidy
-          go mod download
-          CGO_ENABLED=1 go build -o server .
-      
-      - name: Prepare electron resources
-        run: |
-          mkdir -p electron-main/resources/backend
-          cp backend/server electron-main/resources/backend/
-      
-      - name: Build Electron App (Linux)
-        env:
-          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          cd electron-main
-          if [ -z "$GH_TOKEN" ]; then
-            echo "ERROR: GH_TOKEN is not set"
-            exit 1
-          fi
-          echo "GH_TOKEN is set (length: ${#GH_TOKEN})"
-          npx electron-builder --linux AppImage --publish=onTag
-      
-      - name: Upload AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-appimage
-          path: release/*.AppImage
-          retention-days: 30
-      
-      # Let electron-builder publish artifacts and metadata (latest.yml).
-      # Removed the separate Create Release step to avoid overwriting
-      # electron-builder's published metadata.
-
+  # --- JOB WINDOWS ---
   build-windows:
     name: Build Windows (NSIS)
     runs-on: windows-latest
-    
     steps:
       - uses: actions/checkout@v4
-      
       - name: Setup Node.js
         uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
+        with: { node-version: '20' }
       - name: Setup Go
         uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          cache-dependency-path: backend/go.sum
-      
-      - name: Install renderer dependencies
-        working-directory: renderer
-        run: npm install
-
-      - name: Install electron-main dependencies (with retry)
-        shell: pwsh
-        working-directory: electron-main
-        run: |
-          $retries = 0
-          do {
-            npm install
-            if ($LASTEXITCODE -eq 0) { break }
-            $retries++
-            Write-Host "Retry $retries/3 for electron-main npm install..."
-            Start-Sleep -Seconds 20
-          } while ($retries -lt 3)
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "electron-main npm install failed after retries"
-            exit 1
-          }
-        env:
-          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
-          ELECTRON_CUSTOM_DIR: v30.0.9
-      
-      - name: Build backend (Windows)
-        env:
-          CGO_ENABLED: 1
-        run: |
-          cd backend
-          go mod tidy
-          go mod download
-          go build -o server.exe .
-      
-      - name: Prepare electron resources
-        run: |
-          New-Item -Path "electron-main/resources/backend" -ItemType Directory -Force
-          Copy-Item "backend/server.exe" -Destination "electron-main/resources/backend/" -Force
-      
-      - name: Build Electron App (Windows)
-        env:
-          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          cd electron-main
-          if ($null -eq $env:GH_TOKEN -or $env:GH_TOKEN -eq "") {
-            Write-Error "ERROR: GH_TOKEN is not set"
-            exit 1
-          }
-          Write-Host "GH_TOKEN is set (length: $($env:GH_TOKEN.Length))"
-          npx electron-builder --win nsis --publish=onTag
-      
-      - name: Upload Windows Installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: |
-            release/*.exe
-            release/*.blockmap
-          retention-days: 30
-      
-      # Let electron-builder publish artifacts and metadata (latest.yml).
-      # Removed the separate Create Release step to avoid overwriting
-      # electron-builder's published metadata.
-
-  build-macos:
-    name: Build macOS (DMG)
-    runs-on: macos-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          cache-dependency-path: backend/go.sum
+        with: { go-version: '1.23' }
       
       - name: Install dependencies
         run: |
           cd renderer && npm install
           cd ../electron-main && npm install
-      
-      - name: Build backend (macOS)
+        env:
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+          ELECTRON_CUSTOM_DIR: v30.0.9
+
+      - name: Build backend
         run: |
           cd backend
           go mod tidy
-          go mod download
-          go build -o server .
-      
-      - name: Prepare electron resources
+          go build -o server.exe .
+
+      - name: Prepare resources
         run: |
-          mkdir -p electron-main/resources/backend
-          cp backend/server electron-main/resources/backend/
-      
-      - name: Build Electron App (macOS)
+          New-Item -Path "electron-main/resources/backend" -ItemType Directory -Force
+          Copy-Item "backend/server.exe" -Destination "electron-main/resources/backend/" -Force
+
+      - name: Build & Publish Windows
         env:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
-          if [ -z "$GH_TOKEN" ]; then
-            echo "ERROR: GH_TOKEN is not set"
-            exit 1
-          fi
-          echo "GH_TOKEN is set (length: ${#GH_TOKEN})"
-          npm run build:renderer
-          npx electron-builder --mac --publish=onTag
-      
-      - name: Upload macOS DMG
+          # Perintah ini akan otomatis membuat latest.yml karena ada config publish di package.json
+          npx electron-builder --win nsis --publish=onTag
+
+      # Upload artifacts untuk debug (termasuk latest.yml)
+      - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg
+          name: windows-build
           path: |
-            release/*.dmg
-            release/*.dmg.blockmap
-          retention-days: 30
-      
-      # Let electron-builder publish artifacts and metadata (latest.yml).
-      # Removed the separate Create Release step to avoid overwriting
-      # electron-builder's published metadata.
+            electron-main/release/*.exe
+            electron-main/release/latest.yml
+          retention-days: 7
+
+  # --- JOB LINUX ---
+  build-linux:
+    name: Build Linux (AppImage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with: { go-version: '1.23' }
+
+      - name: Install dependencies
+        run: |
+          cd renderer && npm install
+          cd ../electron-main && npm install
+
+      - name: Build backend
+        run: |
+          cd backend
+          go mod tidy
+          CGO_ENABLED=1 go build -o server .
+
+      - name: Prepare resources
+        run: |
+          mkdir -p electron-main/resources/backend
+          cp backend/server electron-main/resources/backend/
+
+      - name: Build & Publish Linux
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          cd electron-main
+          # Otomatis membuat latest-linux.yml
+          npx electron-builder --linux AppImage --publish=onTag
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            electron-main/release/*.AppImage
+            electron-main/release/latest-linux.yml
+          retention-days: 7
+
+  # --- JOB MACOS ---
+  build-macos:
+    name: Build macOS (DMG)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with: { go-version: '1.23' }
+
+      - name: Install dependencies
+        run: |
+          cd renderer && npm install
+          cd ../electron-main && npm install
+
+      - name: Build backend
+        run: |
+          cd backend
+          go mod tidy
+          go build -o server .
+
+      - name: Prepare resources
+        run: |
+          mkdir -p electron-main/resources/backend
+          cp backend/server electron-main/resources/backend/
+
+      - name: Build & Publish macOS
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          cd electron-main
+          # Otomatis membuat latest-mac.yml
+          npm run build:renderer
+          npx electron-builder --mac dmg --publish=onTag
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: |
+            electron-main/release/*.dmg
+            electron-main/release/latest-mac.yml
+          retention-days: 7
