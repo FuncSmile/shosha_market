@@ -6,15 +6,52 @@
   "type": "commonjs",
   "description": "Shosha Mart POS desktop (Electron + Vue + Go sidecar)",
   "author": "Shosha Mart",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FuncSmile/shosha_market.git"
+  },
   "scripts": {
     "dev": "ELECTRON_DEV=1 electron .",
     "start": "electron .",
     "prebuild": "node scripts/prebuild.js",
     "build:renderer": "npm run build --prefix ../renderer",
     "build:backend": "node scripts/build-backend.js",
-    "dist": "npm run prebuild && npm run build:renderer && electron-builder --linux AppImage --win nsis",
+    "dist": "npm run prebuild && npm run build:renderer && electron-builder --linux AppImage --win nsis --mac dmg",
     "dist:linux": "npm run prebuild && npm run build:renderer && electron-builder --linux AppImage",
-    "dist:win": "npm run prebuild && npm run build:renderer && electron-builder --win nsis"
+    "dist:win": "npm run prebuild && npm run build:renderer && electron-builder --win nsis",
+    "dist:mac": "npm run prebuild && npm run build:renderer && electron-builder --mac dmg"
+  },
+  "build": {
+    "appId": "com.shoshamart.pos",
+    "productName": "Shosha Mart POS",
+    "directories": {
+      "output": "release"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "FuncSmile",
+        "repo": "shosha_market",
+        "private": true,
+        "releaseType": "release"
+      }
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Utility"
+    },
+    "win": {
+      "target": ["nsis"],
+      "verifyUpdateCodeSignature": false 
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.productivity"
+    }
   },
   "devDependencies": {
     "electron": "30.0.9",
