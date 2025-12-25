@@ -1,7 +1,6 @@
 {
   "name": "electron-main",
   "version": "1.0.11",
-  "private": true,
   "main": "main.js",
   "type": "commonjs",
   "description": "Shosha Mart POS desktop (Electron + Vue + Go sidecar)",
@@ -16,7 +15,7 @@
     "prebuild": "node scripts/prebuild.js",
     "build:renderer": "npm run build --prefix ../renderer",
     "build:backend": "node scripts/build-backend.js",
-    "dist": "npm run prebuild && npm run build:renderer && electron-builder --linux AppImage --win nsis --mac dmg",
+    "dist": "npm run prebuild && npm run build:renderer && electron-builder --linux AppImage --win nsis",
     "dist:linux": "npm run prebuild && npm run build:renderer && electron-builder --linux AppImage",
     "dist:win": "npm run prebuild && npm run build:renderer && electron-builder --win nsis",
     "dist:mac": "npm run prebuild && npm run build:renderer && electron-builder --mac dmg"
@@ -27,6 +26,15 @@
     "directories": {
       "output": "release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "FuncSmile",
+        "repo": "shosha_market",
+        "private": true, 
+        "releaseType": "release"
+      }
+    ],
     "files": [
       "**/*", 
       {
