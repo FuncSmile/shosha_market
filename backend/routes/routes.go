@@ -43,12 +43,14 @@ func Register(r *gin.Engine, db *gorm.DB, cfg config.AppConfig, worker *syncsvc.
 	r.POST("/api/sales", controllers.CreateSale(db, cfg))
 	r.GET("/api/sales", controllers.ListSales(db))
 	r.GET("/api/sales/:id", controllers.GetSale(db))
+	r.DELETE("/api/sales/:id", controllers.DeleteSale(db))
 	r.GET("/api/sales/export", controllers.ExportSalesReport(db))
 
 	r.POST("/api/stock-opname", controllers.CreateStockOpname(db, cfg))
 
 	r.GET("/api/sync/summary", controllers.SyncSummary(db, cfg, worker))
 	r.POST("/api/sync/run", controllers.SyncRun(worker))
+	r.POST("/api/sync/prune-deleted", controllers.PruneDeleted(db))
 	r.GET("/api/analytics/sales", controllers.SalesAnalytics(db))
 
 	// Debug endpoints

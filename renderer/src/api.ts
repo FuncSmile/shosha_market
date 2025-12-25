@@ -4,11 +4,13 @@ export interface Product {
   unit: string
   stock: number
   price: number
+  price_investor?: number
+  price_shosha?: number
   synced: boolean
   created_at: string
   updated_at: string
 }
-export type ProductInput = Pick<Product, 'name' | 'unit' | 'stock' | 'price'>
+export type ProductInput = Pick<Product, 'name' | 'unit' | 'stock' | 'price' | 'price_investor' | 'price_shosha'>
 
 export interface Branch {
   id: string
@@ -162,6 +164,7 @@ export const api = {
 
   listSales: () => request<Sale[]>('/sales'),
   getSale: (id: string) => request<Sale>(`/sales/${id}`),
+  deleteSale: (id: string) => request<void>(`/sales/${id}`, { method: 'DELETE' }),
   
   exportSales: async () => {
     const res = await fetch(`${API_BASE}/sales/export`);
