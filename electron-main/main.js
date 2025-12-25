@@ -68,16 +68,30 @@ async function createWindow() {
 
   const devURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
 
-  // Determine correct path based on whether app is packaged
-  let distPath;
+let distPath;
   if (app.isPackaged) {
-    // PERBAIKAN: Gunakan path relative terhadap __dirname.
-    // Saat dipackage, struktur di dalam app.asar biasanya:
-    // - electron-main/main.js
-    // - renderer/dist/index.html
-    distPath = path.join(__dirname, "../renderer/dist/index.html");
+    // UBAH DISINI:
+    // Biasanya di production, struktur folder menjadi flat atau sejajar.
+    // Kita cek apakah 'dist' ada di sebelah main.js atau di folder renderer (jarang terjadi di prod).
+    
+    // Opsi 1: Path standar build Vite (dist ada satu level dengan main.js)
+    const possiblePath1 = path.join(__dirname, "dist/index.html");
+    
+    // Opsi 2: Jika main.js ada di dalam folder (misal: dist-electron/main.js), maka harus naik satu level
+    const possiblePath2 = path.join(__dirname, "../dist/index.html");
 
-    console.log("Loading renderer from ASAR:", distPath);
+    // Opsi 3: Path lama Anda (renderer/dist/index.html)
+    const possiblePath3 = path.join(__dirname, "renderer/dist/index.html");
+
+    if (fs.existsSync(possiblePath1)) {
+      distPath = possiblePath1;
+    } else if (fs.existsSync(possiblePath2)) {
+      distPath = possiblePath2;
+    } else {
+      distPath = possiblePath3; // Fallback ke path lama jika struktur custom
+    }
+
+    console.log("Production: Loading renderer from:", distPath);
   } else {
     // In development
     distPath = path.join(__dirname, "../renderer/dist/index.html");
