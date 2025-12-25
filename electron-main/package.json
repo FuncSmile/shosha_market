@@ -26,15 +26,6 @@
     "directories": {
       "output": "release"
     },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "FuncSmile",
-        "repo": "shosha_market",
-        "private": true, 
-        "releaseType": "release"
-      }
-    ],
     "files": [
       "**/*", 
       {
