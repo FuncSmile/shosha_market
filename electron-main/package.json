@@ -26,16 +26,6 @@
     "directories": {
       "output": "release"
     },
-    "extraResources": [
-    {
-      "from": "../backend/server.exe", 
-      "to": "backend/server.exe"
-    },
-    {
-      "from": "../backend/server",
-      "to": "backend/server"
-    }
-  ],
     "publish": [
       {
         "provider": "github",
@@ -53,21 +43,39 @@
         "filter": ["**/*"]
       }
     ],
-    "linux": {
-      "target": ["AppImage"],
-      "category": "Utility"
-    },
     "win": {
       "target": ["nsis"],
-      "verifyUpdateCodeSignature": false 
+      "verifyUpdateCodeSignature": false,
+      "extraResources": [
+        {
+          "from": "../backend/server.exe",
+          "to": "backend/server.exe"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Utility",
+      "extraResources": [
+        {
+          "from": "../backend/server",
+          "to": "backend/server"
+        }
+      ]
+    },
     "mac": {
       "target": ["dmg", "zip"],
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "extraResources": [
+        {
+          "from": "../backend/server",
+          "to": "backend/server"
+        }
+      ]
     }
   },
   "devDependencies": {
