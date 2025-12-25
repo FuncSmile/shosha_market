@@ -6,27 +6,25 @@ renderer/.vite
 # Electron
 /electron-main/node_modules
 /electron-main/out
+/electron-main/release/
+/electron-main/resources/backend/server
+/electron-main/resources/backend/server.exe
 
 # Go
 /backend/offline.db
-/backend/exports/*.xlsx
-/backend/exports/*.xls
+/backend/exports/
 /backend/server
 /backend/server.exe
 /backend/*.log
 
 # OS
 .DS_Store
+Thumbs.db
 
-# Release builds (keep directory structure but ignore binaries)
-/release/*.AppImage
-/release/*.exe
-/release/*.dmg
-/release/*.deb
-/release/*.rpm
-/release/*.snap
-/release/*.blockmap
-/release/linux-unpacked/
-/release/win-unpacked/
-/release/mac/
-/release/mac-arm64/
+# Release builds (ignore all)
+/release/
+
+# Misc
+*.log
+*.tmp
+*.bak

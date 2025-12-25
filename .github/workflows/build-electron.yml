@@ -2,8 +2,6 @@ name: Build Electron App (Multi-Platform)
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -22,42 +20,44 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with: { node-version: '20' }
-        
       - name: Setup Go
         uses: actions/setup-go@v5
         with: { go-version: '1.23' }
       
-      # Install dependencies untuk KEDUA folder
-      - name: Install dependencies
-        run: |
-          cd renderer && npm install
-          cd ../electron-main && npm install
-
-      # Build Frontend (Vite) DULUAN - PERBAIKAN DISINI
-      - name: Build Renderer (Vite)
-        run: |
-          cd renderer
-          npm run build 
-          # Pastikan script 'build' di package.json renderer menjalankan 'vite build'
-
+      # 1. Build Backend
       - name: Build backend
         run: |
           cd backend
           go mod tidy
           go build -o server.exe .
 
-      - name: Prepare resources
+      # 2. Install dependencies
+      - name: Install dependencies
         run: |
-          New-Item -Path "electron-main/resources/backend" -ItemType Directory -Force
-          Copy-Item "backend/server.exe" -Destination "electron-main/resources/backend/" -Force
+          cd renderer && npm install
+          cd ../electron-main && npm install
 
-      - name: Build & Publish Windows
-        env:
-          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      # 3. Build Renderer
+      - name: Build Renderer (Vite)
+        run: |
+          cd renderer
+          npm run build 
+
+      # 4. Build Electron (HAPUS --publish=onTag)
+      # Kita hanya build file .exe nya saja di sini
+      - name: Build Electron App
         run: |
           cd electron-main
-          # Jalankan builder
-          npx electron-builder --win nsis --publish=onTag
+          npx electron-builder --win nsis
+
+      # 5. UPLOAD MANUAL KE RELEASE (BARU!)
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: electron-main/release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # --- JOB LINUX ---
   build-linux:
@@ -72,36 +72,38 @@ jobs:
         uses: actions/setup-go@v5
         with: { go-version: '1.23' }
 
-      - name: Install dependencies
-        run: |
-          cd renderer && npm install
-          cd ../electron-main && npm install
-
-      # Build Frontend (Vite) DULUAN - PERBAIKAN DISINI
-      - name: Build Renderer (Vite)
-        run: |
-          cd renderer
-          npm run build
-
       - name: Build backend
         run: |
           cd backend
           go mod tidy
           CGO_ENABLED=1 go build -o server .
 
-      - name: Prepare resources
+      - name: Install dependencies
         run: |
-          mkdir -p electron-main/resources/backend
-          cp backend/server electron-main/resources/backend/
+          cd renderer && npm install
+          cd ../electron-main && npm install
 
-      - name: Build & Publish Linux
-        env:
-          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Build Renderer
+        run: |
+          cd renderer
+          npm run build
+
+      # Build Electron (HAPUS --publish=onTag)
+      - name: Build Electron App
         run: |
           cd electron-main
-          npx electron-builder --linux AppImage --publish=onTag
+          npx electron-builder --linux AppImage
 
-  # --- JOB MACOS (Sudah Oke, cuma dirapikan) ---
+      # UPLOAD MANUAL KE RELEASE (BARU!)
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: electron-main/release/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # --- JOB MACOS ---
   build-macos:
     name: Build macOS (DMG)
     runs-on: macos-latest
@@ -114,30 +116,33 @@ jobs:
         uses: actions/setup-go@v5
         with: { go-version: '1.23' }
 
-      - name: Install dependencies
-        run: |
-          cd renderer && npm install
-          cd ../electron-main && npm install
-
-      - name: Build Renderer (Vite)
-        run: |
-          cd renderer
-          npm run build
-
       - name: Build backend
         run: |
           cd backend
           go mod tidy
           go build -o server .
 
-      - name: Prepare resources
+      - name: Install dependencies
         run: |
-          mkdir -p electron-main/resources/backend
-          cp backend/server electron-main/resources/backend/
+          cd renderer && npm install
+          cd ../electron-main && npm install
 
-      - name: Build & Publish macOS
-        env:
-          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Build Renderer
+        run: |
+          cd renderer
+          npm run build
+
+      # Build Electron (HAPUS --publish=onTag)
+      - name: Build Electron App
         run: |
           cd electron-main
-          npx electron-builder --mac dmg --publish=onTag
+          npx electron-builder --mac dmg
+
+      # UPLOAD MANUAL KE RELEASE (BARU!)
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: electron-main/release/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
