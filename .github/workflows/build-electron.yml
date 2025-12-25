@@ -2,10 +2,8 @@ name: Build Electron App (Multi-Platform)
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - 'v*'
+      - 'v*' # Workflow HANYA jalan kalau ada Tag (agar tidak buang kuota build)
   workflow_dispatch:
 
 permissions:
@@ -27,36 +25,32 @@ jobs:
         uses: actions/setup-go@v5
         with: { go-version: '1.23' }
       
-      # Install dependencies untuk KEDUA folder
-      - name: Install dependencies
-        run: |
-          cd renderer && npm install
-          cd ../electron-main && npm install
-
-      # Build Frontend (Vite) DULUAN - PERBAIKAN DISINI
-      - name: Build Renderer (Vite)
-        run: |
-          cd renderer
-          npm run build 
-          # Pastikan script 'build' di package.json renderer menjalankan 'vite build'
-
+      # 1. Build Backend (File akan muncul di root/backend/server.exe)
       - name: Build backend
         run: |
           cd backend
           go mod tidy
           go build -o server.exe .
 
-      - name: Prepare resources
+      # 2. Install dependencies
+      - name: Install dependencies
         run: |
-          New-Item -Path "electron-main/resources/backend" -ItemType Directory -Force
-          Copy-Item "backend/server.exe" -Destination "electron-main/resources/backend/" -Force
+          cd renderer && npm install
+          cd ../electron-main && npm install
 
+      # 3. Build Frontend (Vite)
+      - name: Build Renderer (Vite)
+        run: |
+          cd renderer
+          npm run build 
+
+      # 4. Build & Publish Electron
+      # package.json akan otomatis mengambil ../backend/server.exe
       - name: Build & Publish Windows
         env:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
-          # Jalankan builder
           npx electron-builder --win nsis --publish=onTag
 
   # --- JOB LINUX ---
@@ -72,28 +66,26 @@ jobs:
         uses: actions/setup-go@v5
         with: { go-version: '1.23' }
 
-      - name: Install dependencies
-        run: |
-          cd renderer && npm install
-          cd ../electron-main && npm install
-
-      # Build Frontend (Vite) DULUAN - PERBAIKAN DISINI
-      - name: Build Renderer (Vite)
-        run: |
-          cd renderer
-          npm run build
-
+      # 1. Build Backend
       - name: Build backend
         run: |
           cd backend
           go mod tidy
           CGO_ENABLED=1 go build -o server .
 
-      - name: Prepare resources
+      # 2. Install dependencies
+      - name: Install dependencies
         run: |
-          mkdir -p electron-main/resources/backend
-          cp backend/server electron-main/resources/backend/
+          cd renderer && npm install
+          cd ../electron-main && npm install
 
+      # 3. Build Renderer
+      - name: Build Renderer (Vite)
+        run: |
+          cd renderer
+          npm run build
+
+      # 4. Build & Publish Electron
       - name: Build & Publish Linux
         env:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
@@ -101,7 +93,7 @@ jobs:
           cd electron-main
           npx electron-builder --linux AppImage --publish=onTag
 
-  # --- JOB MACOS (Sudah Oke, cuma dirapikan) ---
+  # --- JOB MACOS ---
   build-macos:
     name: Build macOS (DMG)
     runs-on: macos-latest
@@ -114,27 +106,26 @@ jobs:
         uses: actions/setup-go@v5
         with: { go-version: '1.23' }
 
-      - name: Install dependencies
-        run: |
-          cd renderer && npm install
-          cd ../electron-main && npm install
-
-      - name: Build Renderer (Vite)
-        run: |
-          cd renderer
-          npm run build
-
+      # 1. Build Backend
       - name: Build backend
         run: |
           cd backend
           go mod tidy
           go build -o server .
 
-      - name: Prepare resources
+      # 2. Install dependencies
+      - name: Install dependencies
         run: |
-          mkdir -p electron-main/resources/backend
-          cp backend/server electron-main/resources/backend/
+          cd renderer && npm install
+          cd ../electron-main && npm install
 
+      # 3. Build Renderer
+      - name: Build Renderer (Vite)
+        run: |
+          cd renderer
+          npm run build
+
+      # 4. Build & Publish Electron
       - name: Build & Publish macOS
         env:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
