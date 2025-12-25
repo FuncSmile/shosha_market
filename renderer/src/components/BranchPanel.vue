@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref, computed } from 'vue'
 import { api, type Branch } from '../api'
 import { useToast } from '../composables/useToast'
+import { toast } from 'vue-sonner'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
@@ -115,6 +116,7 @@ async function save() {
     if (form.id) {
       console.log('[BranchPanel] updating branch', form.id)
       await api.updateBranch(form.id, form)
+      syncedInfo.value[form.id] = false // Mark as offline after edit
       success('Berhasil memperbarui cabang')
     } else {
       console.log('[BranchPanel] creating branch', { name: form.name, code: form.code })
@@ -137,8 +139,30 @@ function edit(item: Branch) {
 }
 
 async function remove(id: string) {
-  await api.deleteBranch(id)
-  await load()
+  const branch = branches.value.find(b => b.id === id)
+  if (!branch) return
+  
+  // Use Sonner toast with action buttons for confirmation
+  toast(`Hapus cabang "${branch.name}"?`, {
+    description: 'Tindakan ini tidak bisa dibatalkan.',
+    action: {
+      label: 'Hapus',
+      onClick: async () => {
+        try {
+          await api.deleteBranch(id)
+          success(`✓ Terhapus. Menunggu sinkronisasi ke server.`)
+          await load()
+        } catch (err) {
+          error((err as Error).message)
+        }
+      }
+    },
+    cancel: {
+      label: 'Batal',
+      onClick: () => {} // Do nothing on cancel
+    },
+    duration: 5000
+  })
 }
 
 onMounted(load)

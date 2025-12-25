@@ -181,7 +181,7 @@ func generateReceiptNo() string {
 func ListSales(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var sales []models.Sale
-		if err := db.Order("created_at DESC").Find(&sales).Error; err != nil {
+		if err := db.Where("is_deleted = ?", false).Order("created_at DESC").Find(&sales).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -194,7 +194,7 @@ func GetSale(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		var sale models.Sale
-		if err := db.First(&sale, "id = ?", id).Error; err != nil {
+		if err := db.First(&sale, "id = ? AND is_deleted = ?", id, false).Error; err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				status = http.StatusNotFound
@@ -203,7 +203,7 @@ func GetSale(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		var items []models.SaleItem
-		if err := db.Where("sale_id = ?", sale.ID).Find(&items).Error; err != nil {
+		if err := db.Where("sale_id = ? AND is_deleted = ?", sale.ID, false).Find(&items).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -226,5 +226,59 @@ func ExportSalesReport(db *gorm.DB) gin.HandlerFunc {
 		if err := f.Write(c.Writer); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
+	}
+}
+
+// DeleteSale removes a sale and its items, and restores product stock
+func DeleteSale(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+
+		err := db.Transaction(func(tx *gorm.DB) error {
+			// First, get all items to restore stock
+			var items []models.SaleItem
+			if err := tx.Where("sale_id = ? AND is_deleted = ?", id, false).Find(&items).Error; err != nil {
+				return err
+			}
+
+			// Restore stock for each item
+			for _, item := range items {
+				if err := tx.Model(&models.Product{}).
+					Where("id = ?", item.ProductID).
+					UpdateColumn("stock", gorm.Expr("stock + ?", item.Qty)).Error; err != nil {
+					return err
+				}
+			}
+
+			// Soft-delete sale and its items
+			if err := tx.Model(&models.SaleItem{}).
+				Where("sale_id = ?", id).
+				Updates(map[string]interface{}{
+					"is_deleted": true,
+					"deleted_at": gorm.Expr("CURRENT_TIMESTAMP"),
+					"synced":     false,
+				}).Error; err != nil {
+				return err
+			}
+
+			if err := tx.Model(&models.Sale{}).
+				Where("id = ?", id).
+				Updates(map[string]interface{}{
+					"is_deleted": true,
+					"deleted_at": gorm.Expr("CURRENT_TIMESTAMP"),
+					"synced":     false,
+				}).Error; err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "sale deleted"})
 	}
 }

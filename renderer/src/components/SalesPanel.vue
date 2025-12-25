@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api, type Branch, type Product } from '../api'
 import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
@@ -39,7 +39,18 @@ const kembalian = computed(() => {
   return Math.max(0, form.jumlah_bayar - total.value)
 })
 const selectedBranch = computed(() => branches.value.find((b) => b.id === form.branch_id))
-const canEditPrice = computed(() => selectedBranch.value?.code?.toLowerCase() === 'shosha')
+const canEditPrice = computed(() => selectedBranch.value?.code?.trim().toLowerCase() === 'shosha')
+
+function getApplicablePrice(product: Product): number {
+  const code = selectedBranch.value?.code?.trim().toLowerCase() || ''
+  if (code === 'investor') {
+    return (product as any).price_investor ?? product.price
+  }
+  if (code === 'shosha') {
+    return (product as any).price_shosha ?? product.price
+  }
+  return product.price
+}
 
 const cartItems = computed(() => {
   return form.items.map((item) => {
@@ -110,7 +121,7 @@ function handleAddToCart(product: Product) {
     form.items.push({
       product_id: product.id,
       qty: 1,
-      price: product.price,
+      price: getApplicablePrice(product),
     })
   }
 }
@@ -273,7 +284,7 @@ function printReceipt() {
       table.items {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 8px;
+        margin-top: 4px;
         border-top: 1px solid #000;
         border-bottom: 1px solid #000;
       }
@@ -454,6 +465,16 @@ function closePrintDialog() {
 onMounted(async () => {
   await Promise.all([loadProducts(), loadBranches()])
 })
+
+// Recalculate cart prices when branch changes
+watch(() => form.branch_id, (newVal) => {
+  if (!newVal) return
+  form.items = form.items.map(item => {
+    const product = products.value.find(p => p.id === item.product_id)
+    if (!product) return item
+    return { ...item, price: getApplicablePrice(product) }
+  })
+})
 </script>
 
 <template>
@@ -491,7 +512,7 @@ onMounted(async () => {
                 <p :class="['text-sm font-semibold ', (product.stock ?? 0) > 0 ? 'text-black' : ' text-red-500/40']">{{
                   product.name }}</p>
                 <p class="text-xs text-slate-400">
-                  Stok: {{ product.stock }} {{ product.unit }} • Rp{{ product.price.toLocaleString('id-ID') }}
+                  Stok: {{ product.stock }} {{ product.unit }} • Rp{{ getApplicablePrice(product).toLocaleString('id-ID') }}
                 </p>
               </div>
               <Button variant="ghost" size="sm" class="text-emerald-200" :disabled="(product.stock ?? 0) <= 0">+
@@ -651,7 +672,7 @@ onMounted(async () => {
       @click="closePrintDialog">
       <Card class="max-w-md" @click.stop>
         <div class="p-6 space-y-4">
-          <h3 class="text-lg font-semibold text-white">Transaksi Berhasil!</h3>
+          <h3 class="text-lg font-semibold text-emerald-500">Transaksi Berhasil!</h3>
           <p class="text-sm ">
             {{ printData?.payment_method === 'hutang' ? 'Surat jalan siap dicetak' : 'Struk pembayaran siap dicetak' }}
           </p>

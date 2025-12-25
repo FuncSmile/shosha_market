@@ -14,7 +14,7 @@ import (
 func ListBranches(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var branches []models.Branch
-		if err := db.Order("updated_at desc").Find(&branches).Error; err != nil {
+		if err := db.Where("is_deleted = ?", false).Order("updated_at desc").Find(&branches).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -98,8 +98,13 @@ func DeleteBranch(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Delete branch
-		if err := db.Delete(&branch).Error; err != nil {
+		// Soft delete branch
+		updates := map[string]interface{}{
+			"is_deleted": true,
+			"deleted_at": gorm.Expr("CURRENT_TIMESTAMP"),
+			"synced":     false,
+		}
+		if err := db.Model(&branch).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

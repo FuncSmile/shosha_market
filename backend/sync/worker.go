@@ -200,6 +200,14 @@ func (w *Worker) upload(ctx context.Context) error {
 		res := w.db.Model(&models.StockOpnameItem{}).Where("id IN ?", ids).Update("synced", true)
 		log.Printf("[SYNC] marked stock_opname_items synced: rows=%d, error=%v", res.RowsAffected, res.Error)
 	}
+
+	// Prune locally: hard delete rows that are tombstoned and synced
+	w.db.Where("is_deleted = ? AND synced = ?", true, true).Delete(&models.SaleItem{})
+	w.db.Where("is_deleted = ? AND synced = ?", true, true).Delete(&models.Sale{})
+	w.db.Where("is_deleted = ? AND synced = ?", true, true).Delete(&models.Product{})
+	w.db.Where("is_deleted = ? AND synced = ?", true, true).Delete(&models.Branch{})
+	w.db.Where("is_deleted = ? AND synced = ?", true, true).Delete(&models.StockOpnameItem{})
+	w.db.Where("is_deleted = ? AND synced = ?", true, true).Delete(&models.StockOpname{})
 	return nil
 }
 

@@ -5,6 +5,7 @@ import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
 import { useToast } from '../composables/useToast'
+import { toast } from 'vue-sonner'
 
 const { success, error, warning } = useToast()
 const products = ref<Product[]>([])
@@ -19,16 +20,29 @@ const adjustingDelta = ref<number>(1) // +1 for masuk, -1 for keluar
 const listSearch = ref('')
 const listPage = ref(1)
 const listPageSize = 5
+const sortUnitDir = ref<'asc' | 'desc'>('asc')
+const editingProductId = ref<string | null>(null)
+const editForm = ref<Partial<Product>>({})
 const filteredList = computed(() => {
   const q = listSearch.value.trim().toLowerCase()
   if (!q) return products.value
   return products.value.filter(p => p.name?.toLowerCase().includes(q) || p.unit?.toLowerCase().includes(q))
 })
-const totalListPages = computed(() => Math.ceil(filteredList.value.length / listPageSize))
+const filteredListSorted = computed(() => {
+  const sorted = [...filteredList.value]
+  sorted.sort((a, b) => {
+    const aUnit = (a.unit || '').toLowerCase()
+    const bUnit = (b.unit || '').toLowerCase()
+    const cmp = aUnit.localeCompare(bUnit)
+    return sortUnitDir.value === 'asc' ? cmp : -cmp
+  })
+  return sorted
+})
+const totalListPages = computed(() => Math.ceil(filteredListSorted.value.length / listPageSize))
 const paginatedList = computed(() => {
   if (listPage.value > totalListPages.value) listPage.value = Math.max(1, totalListPages.value)
   const start = (listPage.value - 1) * listPageSize
-  return filteredList.value.slice(start, start + listPageSize)
+  return filteredListSorted.value.slice(start, start + listPageSize)
 })
 // Single-item form removed
 
@@ -211,11 +225,60 @@ async function load() {
   }
 }
 
-// Single-item form removed; editing disabled in list
+function startEdit(product: Product) {
+  editingProductId.value = product.id
+  editForm.value = {
+    name: product.name,
+    unit: product.unit,
+    stock: product.stock,
+    price: product.price,
+    price_investor: product.price_investor,
+    price_shosha: product.price_shosha
+  }
+}
+
+function cancelEdit() {
+  editingProductId.value = null
+  editForm.value = {}
+}
+
+async function saveEdit(product: Product) {
+  try {
+    await api.updateProduct(product.id, editForm.value)
+    syncedInfo.value[product.id] = false // Mark as offline after edit
+    success(`✓ ${editForm.value.name} berhasil diperbarui`)
+    cancelEdit()
+    await load()
+  } catch (err) {
+    error((err as Error).message)
+  }
+}
 
 async function remove(id: string) {
-  await api.deleteProduct(id)
-  await load()
+  const product = products.value.find(p => p.id === id)
+  if (!product) return
+  
+  // Use Sonner toast with action buttons for confirmation
+  toast(`Hapus "${product.name}"?`, {
+    description: 'Tindakan ini tidak bisa dibatalkan.',
+    action: {
+      label: 'Hapus',
+      onClick: async () => {
+        try {
+          await api.deleteProduct(id)
+          success(`✓ Terhapus. Menunggu sinkronisasi ke server.`)
+          await load()
+        } catch (err) {
+          error((err as Error).message)
+        }
+      }
+    },
+    cancel: {
+      label: 'Batal',
+      onClick: () => {} // Do nothing on cancel
+    },
+    duration: 5000
+  })
 }
 
 function openAdjust(product: Product, delta: number) {
@@ -287,7 +350,9 @@ onMounted(load)
                   <th class="px-2 py-2">Nama</th>
                   <th class="px-2 py-2">Satuan</th>
                   <th class="px-2 py-2">Stok</th>
-                  <th class="px-2 py-2">Harga</th>
+                  <th class="px-2 py-2">Harga Normal</th>
+                  <th class="px-2 py-2">Harga Investor</th>
+                  <th class="px-2 py-2">Harga SHOSHA</th>
                   <th class="px-2 py-2">Aksi</th>
                 </tr>
               </thead>
@@ -304,12 +369,28 @@ onMounted(load)
                       class="w-full rounded  px-2 py-1 text-sm outline-slate-200 placeholder:text-slate-500"
                     />
                   </td>
+                  <td class="px-2 py-1">
+                    <Input 
+                      :value="formatRupiah(row.price_investor)" 
+                      @input="(e: InputEvent) => { row.price_investor = parseRupiah((e.target as HTMLInputElement).value) }"
+                      placeholder="Rp 0"
+                      class="w-full rounded  px-2 py-1 text-sm outline-slate-200 placeholder:text-slate-500"
+                    />
+                  </td>
+                  <td class="px-2 py-1">
+                    <Input 
+                      :value="formatRupiah(row.price_shosha)" 
+                      @input="(e: InputEvent) => { row.price_shosha = parseRupiah((e.target as HTMLInputElement).value) }"
+                      placeholder="Rp 0"
+                      class="w-full rounded  px-2 py-1 text-sm outline-slate-200 placeholder:text-slate-500"
+                    />
+                  </td>
                   <td class="px-2 py-1"><Button variant="ghost" class="text-xs text-rose-200" @click="removeRow(idx)">Hapus</Button></td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p class="mt-2 text-xs text-slate-500">Minimal: Nama, Satuan, Harga</p>
+          <p class="mt-2 text-xs text-slate-500">Minimal: Nama, Satuan, Harga Normal. Harga Investor & SHOSHA opsional (default = Harga Normal).</p>
         </div>
       </Card>
 
@@ -317,7 +398,7 @@ onMounted(load)
         <div class="p-4">
           <div class="flex items-center justify-between">
             <p class="text-sm font-bold">Daftar Barang</p>
-            <span class="text-xs text-slate-500">{{ filteredList.length }} item</span>
+            <span class="text-xs text-slate-500">{{ filteredListSorted.length }} item</span>
           </div>
           <div class="mt-3 flex items-center gap-2">
             <input
@@ -326,6 +407,7 @@ onMounted(load)
               class="w-full max-w-sm rounded  px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400"
               type="search"
             />
+            <Button variant="ghost" class="text-xs" @click="sortUnitDir = sortUnitDir === 'asc' ? 'desc' : 'asc'">Sort Unit {{ sortUnitDir === 'asc' ? '↑' : '↓' }}</Button>
             <span class="text-xs text-slate-500">Hal {{ listPage }} / {{ totalListPages || 1 }}</span>
           </div>
           <div v-if="loading" class="py-6 text-sm text-slate-400">Memuat...</div>
@@ -333,37 +415,94 @@ onMounted(load)
             <div
               v-for="product in paginatedList"
               :key="product.id"
-              class="flex items-center justify-between rounded-xl  px-3 py-2 ring-1 ring-white/5"
+              class="rounded-xl  px-3 py-2 ring-1 ring-white/5"
             >
-              <div>
-                <p class="font-semibold text-black">{{ product.name }}</p>
-                <p class="text-xs text-slate-400">{{ product.unit }} • Stok {{ product.stock }} • {{ formatRupiah(product.price) }}</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <span
-                  class="rounded-full px-2 py-1 text-[10px] uppercase tracking-wide"
-                  :class="syncedInfo[product.id] ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'"
-                >
-                  {{ syncedInfo[product.id] ? 'online (synced)' : 'offline (pending sync)' }}
-                </span>
-                <template v-if="adjustingProductId !== product.id">
-                  <Button variant="ghost" class="text-xs" @click.prevent="() => openAdjust(product, 1)">Stock Masuk</Button>
-                  <Button variant="ghost" class="text-xs" @click.prevent="() => openAdjust(product, -1)">Stock Keluar</Button>
-                </template>
-                <template v-else>
-                  <div class="flex items-center gap-2">
-                    <input type="number" v-model.number="adjustingAmount" min="1" class="w-20 rounded  px-2 py-1 text-sm text-white" />
-                    <Button size="sm" class="text-xs" @click.prevent="() => confirmAdjust(product)">OK</Button>
-                    <Button variant="ghost" size="sm" class="text-xs" @click.prevent="cancelAdjust">Batal</Button>
+              <!-- View mode -->
+              <template v-if="editingProductId !== product.id">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-semibold text-black">{{ product.name }}</p>
+                    <p class="text-xs text-slate-400">{{ product.unit }} • Stok {{ product.stock }}</p>
+                    <p class="text-xs text-slate-400">Harga Normal: {{ formatRupiah(product.price) }} | Investor: {{ formatRupiah(product.price_investor || product.price) }} | SHOSHA: {{ formatRupiah(product.price_shosha || product.price) }}</p>
                   </div>
-                </template>
-                <Button variant="ghost" class="text-xs text-rose-200" @click="remove(product.id)">Hapus</Button>
-              </div>
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="rounded-full px-2 py-1 text-[10px] uppercase tracking-wide"
+                      :class="syncedInfo[product.id] ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'"
+                    >
+                      {{ syncedInfo[product.id] ? 'online (synced)' : 'offline (pending sync)' }}
+                    </span>
+                    <template v-if="adjustingProductId !== product.id">
+                      <Button variant="ghost" class="text-xs" @click.prevent="() => openAdjust(product, 1)">↑ Stok</Button>
+                      <Button variant="ghost" class="text-xs" @click.prevent="() => openAdjust(product, -1)">↓ Stok</Button>
+                      <Button variant="ghost" class="text-xs text-blue-300" @click="startEdit(product)">Edit</Button>
+                    </template>
+                    <template v-else>
+                      <div class="flex items-center gap-2">
+                        <input type="number" v-model.number="adjustingAmount" min="1" class="w-16 rounded  px-2 py-1 text-sm text-white" />
+                        <Button size="sm" class="text-xs" @click.prevent="() => confirmAdjust(product)">OK</Button>
+                        <Button variant="ghost" size="sm" class="text-xs" @click.prevent="cancelAdjust">Batal</Button>
+                      </div>
+                    </template>
+                    <Button variant="ghost" class="text-xs text-rose-200" @click="remove(product.id)">Hapus</Button>
+                  </div>
+                </div>
+              </template>
+              <!-- Edit mode -->
+              <template v-else>
+                <div class="space-y-2">
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="text-xs font-bold">Nama</label>
+                      <Input v-model="editForm.name" placeholder="Nama" class="mt-1" />
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold">Satuan</label>
+                      <Input v-model="editForm.unit" placeholder="kg, pcs, liter" class="mt-1" />
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold">Stok</label>
+                      <Input v-model.number="editForm.stock" type="number" min="0" class="mt-1" />
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold">Harga Normal</label>
+                      <Input 
+                        :value="formatRupiah(editForm.price)" 
+                        @input="(e: InputEvent) => { editForm.price = parseRupiah((e.target as HTMLInputElement).value) }"
+                        placeholder="Rp 0"
+                        class="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold">Harga Investor</label>
+                      <Input 
+                        :value="formatRupiah(editForm.price_investor)" 
+                        @input="(e: InputEvent) => { editForm.price_investor = parseRupiah((e.target as HTMLInputElement).value) }"
+                        placeholder="Rp 0"
+                        class="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label class="text-xs font-bold">Harga SHOSHA</label>
+                      <Input 
+                        :value="formatRupiah(editForm.price_shosha)" 
+                        @input="(e: InputEvent) => { editForm.price_shosha = parseRupiah((e.target as HTMLInputElement).value) }"
+                        placeholder="Rp 0"
+                        class="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <Button class="text-xs" @click="saveEdit(product)">Simpan</Button>
+                    <Button variant="ghost" class="text-xs" @click="cancelEdit">Batal</Button>
+                  </div>
+                </div>
+              </template>
             </div>
             <p v-if="!products.length" class="py-4 text-sm text-slate-400">Belum ada data.</p>
             <div v-else class="flex items-center justify-between py-2">
               <Button variant="ghost" size="sm" :disabled="listPage <= 1" @click="listPage--">Sebelumnya</Button>
-              <div class="text-xs text-slate-500">Menampilkan {{ paginatedList.length }} dari {{ filteredList.length }}</div>
+              <div class="text-xs text-slate-500">Menampilkan {{ paginatedList.length }} dari {{ filteredListSorted.length }}</div>
               <Button variant="ghost" size="sm" :disabled="listPage >= totalListPages" @click="listPage++">Berikutnya</Button>
             </div>
           </div>
