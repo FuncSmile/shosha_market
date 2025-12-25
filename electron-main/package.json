@@ -26,6 +26,16 @@
     "directories": {
       "output": "release"
     },
+    "extraResources": [
+    {
+      "from": "../backend/server${exe}", 
+      "to": "backend/server${exe}"
+    },
+    {
+      "from": "../backend/server",
+      "to": "backend/server"
+    }
+  ],
     "publish": [
       {
         "provider": "github",
