@@ -2,7 +2,6 @@ name: Build Electron App (Multi-Platform)
 
 on:
   push:
-    branches: [ main, develop ]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -17,20 +16,27 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with: { node-version: '20' }
+        
       - name: Setup Go
         uses: actions/setup-go@v5
         with: { go-version: '1.23' }
       
+      # Install dependencies untuk KEDUA folder
       - name: Install dependencies
         run: |
           cd renderer && npm install
           cd ../electron-main && npm install
-        env:
-          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
-          ELECTRON_CUSTOM_DIR: v30.0.9
+
+      # Build Frontend (Vite) DULUAN - PERBAIKAN DISINI
+      - name: Build Renderer (Vite)
+        run: |
+          cd renderer
+          npm run build 
+          # Pastikan script 'build' di package.json renderer menjalankan 'vite build'
 
       - name: Build backend
         run: |
@@ -48,18 +54,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
-          # Perintah ini akan otomatis membuat latest.yml karena ada config publish di package.json
+          # Jalankan builder
           npx electron-builder --win nsis --publish=onTag
-
-      # Upload artifacts untuk debug (termasuk latest.yml)
-      - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: |
-            electron-main/release/*.exe
-            electron-main/release/latest.yml
-          retention-days: 7
 
   # --- JOB LINUX ---
   build-linux:
@@ -79,6 +75,12 @@ jobs:
           cd renderer && npm install
           cd ../electron-main && npm install
 
+      # Build Frontend (Vite) DULUAN - PERBAIKAN DISINI
+      - name: Build Renderer (Vite)
+        run: |
+          cd renderer
+          npm run build
+
       - name: Build backend
         run: |
           cd backend
@@ -95,19 +97,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
-          # Otomatis membuat latest-linux.yml
           npx electron-builder --linux AppImage --publish=onTag
 
-      - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: |
-            electron-main/release/*.AppImage
-            electron-main/release/latest-linux.yml
-          retention-days: 7
-
-  # --- JOB MACOS ---
+  # --- JOB MACOS (Sudah Oke, cuma dirapikan) ---
   build-macos:
     name: Build macOS (DMG)
     runs-on: macos-latest
@@ -125,6 +117,11 @@ jobs:
           cd renderer && npm install
           cd ../electron-main && npm install
 
+      - name: Build Renderer (Vite)
+        run: |
+          cd renderer
+          npm run build
+
       - name: Build backend
         run: |
           cd backend
@@ -141,15 +138,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cd electron-main
-          # Otomatis membuat latest-mac.yml
-          npm run build:renderer
           npx electron-builder --mac dmg --publish=onTag
-
-      - name: Upload macOS Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-build
-          path: |
-            electron-main/release/*.dmg
-            electron-main/release/latest-mac.yml
-          retention-days: 7
