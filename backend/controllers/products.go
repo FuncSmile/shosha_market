@@ -27,23 +27,34 @@ func ListProducts(db *gorm.DB) gin.HandlerFunc {
 func CreateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var payload struct {
-			Name  string  `json:"name" binding:"required"`
-			Unit  string  `json:"unit" binding:"required"`
-			Stock int     `json:"stock"`
-			Price float64 `json:"price" binding:"required,gt=0"`
+			Name          string  `json:"name" binding:"required"`
+			Unit          string  `json:"unit" binding:"required"`
+			Stock         int     `json:"stock"`
+			Price         float64 `json:"price" binding:"required,gt=0"`
+			PriceInvestor float64 `json:"price_investor"`
+			PriceShosha   float64 `json:"price_shosha"`
 		}
 		if err := c.ShouldBindJSON(&payload); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		product := models.Product{
-			ID:       uuid.NewString(),
-			Name:     payload.Name,
-			Unit:     payload.Unit,
-			Stock:    payload.Stock,
-			Price:    payload.Price,
-			Synced:   false,
-			BranchID: cfg.BranchID,
+			ID:            uuid.NewString(),
+			Name:          payload.Name,
+			Unit:          payload.Unit,
+			Stock:         payload.Stock,
+			Price:         payload.Price,
+			PriceInvestor: payload.PriceInvestor,
+			PriceShosha:   payload.PriceShosha,
+			Synced:        false,
+			BranchID:      cfg.BranchID,
+		}
+		// Backward compat: default specific prices to Price if not provided
+		if product.PriceInvestor == 0 {
+			product.PriceInvestor = product.Price
+		}
+		if product.PriceShosha == 0 {
+			product.PriceShosha = product.Price
 		}
 		if err := db.Create(&product).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -58,10 +69,12 @@ func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		var payload struct {
-			Name  string  `json:"name"`
-			Unit  string  `json:"unit"`
-			Stock int     `json:"stock"`
-			Price float64 `json:"price"`
+		    Name          string  `json:"name"`
+		    Unit          string  `json:"unit"`
+		    Stock         int     `json:"stock"`
+		    Price         float64 `json:"price"`
+		    PriceInvestor float64 `json:"price_investor"`
+		    PriceShosha   float64 `json:"price_shosha"`
 		}
 		if err := c.ShouldBindJSON(&payload); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
@@ -77,11 +90,13 @@ func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 
 		// Update product
 		if err := db.Model(&product).Updates(models.Product{
-			Name:   payload.Name,
-			Unit:   payload.Unit,
-			Stock:  payload.Stock,
-			Price:  payload.Price,
-			Synced: false, // Mark as unsynced when updated
+			Name:          payload.Name,
+			Unit:          payload.Unit,
+			Stock:         payload.Stock,
+			Price:         payload.Price,
+			PriceInvestor: payload.PriceInvestor,
+			PriceShosha:   payload.PriceShosha,
+			Synced:        false, // Mark as unsynced when updated
 		}).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -114,10 +129,12 @@ func DeleteProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 // BulkCreateProducts inserts multiple products in one request.
 func BulkCreateProducts(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 	type Row struct {
-		Name  string  `json:"name" binding:"required"`
-		Unit  string  `json:"unit" binding:"required"`
-		Stock int     `json:"stock"`
-		Price float64 `json:"price" binding:"required,gt=0"`
+	Name          string  `json:"name" binding:"required"`
+	Unit          string  `json:"unit" binding:"required"`
+	Stock         int     `json:"stock"`
+	Price         float64 `json:"price" binding:"required,gt=0"`
+	PriceInvestor float64 `json:"price_investor"`
+	PriceShosha   float64 `json:"price_shosha"`
 	}
 	return func(c *gin.Context) {
 		var rows []Row
@@ -128,13 +145,21 @@ func BulkCreateProducts(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 		created := make([]models.Product, 0, len(rows))
 		for _, r := range rows {
 			p := models.Product{
-				ID:       uuid.NewString(),
-				Name:     r.Name,
-				Unit:     r.Unit,
-				Stock:    r.Stock,
-				Price:    r.Price,
-				Synced:   false,
-				BranchID: cfg.BranchID,
+				ID:            uuid.NewString(),
+				Name:          r.Name,
+				Unit:          r.Unit,
+				Stock:         r.Stock,
+				Price:         r.Price,
+				PriceInvestor: r.PriceInvestor,
+				PriceShosha:   r.PriceShosha,
+				Synced:        false,
+				BranchID:      cfg.BranchID,
+			}
+			if p.PriceInvestor == 0 {
+				p.PriceInvestor = p.Price
+			}
+			if p.PriceShosha == 0 {
+				p.PriceShosha = p.Price
 			}
 			if err := db.Create(&p).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

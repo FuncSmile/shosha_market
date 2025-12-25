@@ -4,15 +4,17 @@ import "time"
 
 // Product represents an inventory item stored locally first.
 type Product struct {
-	ID        string    `json:"id" gorm:"primaryKey"`
-	Name      string    `json:"name"`
-	Unit      string    `json:"unit"` // Satuan (kg, pcs, liter, dll)
-	Stock     int       `json:"stock"`
-	Price     float64   `json:"price"`
-	Synced    bool      `json:"synced"`
-	BranchID  string    `json:"branch_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID            string    `json:"id" gorm:"primaryKey"`
+	Name          string    `json:"name"`
+	Unit          string    `json:"unit"` // Satuan (kg, pcs, liter, dll)
+	Stock         int       `json:"stock"`
+	Price         float64   `json:"price"`          // Legacy/default price used by existing sales logic
+	PriceInvestor float64   `json:"price_investor"` // Harga untuk Investor
+	PriceShosha   float64   `json:"price_shosha"`   // Harga untuk SHOSHA
+	Synced        bool      `json:"synced"`
+	BranchID      string    `json:"branch_id"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // Branch represents a store branch entry.
