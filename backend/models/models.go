@@ -13,7 +13,7 @@ type Product struct {
 	PriceShosha   float64    `json:"price_shosha"`   // Harga untuk SHOSHA
 	Synced        bool       `json:"synced"`
 	BranchID      string     `json:"branch_id"`
-	IsDeleted     bool       `json:"is_deleted"`
+	IsDeleted     bool       `json:"is_deleted" gorm:"default:false"`
 	DeletedAt     *time.Time `json:"deleted_at"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
@@ -27,7 +27,7 @@ type Branch struct {
 	Address   string     `json:"address"`
 	Phone     string     `json:"phone"`
 	Synced    bool       `json:"synced"`
-	IsDeleted bool       `json:"is_deleted"`
+	IsDeleted bool       `json:"is_deleted" gorm:"default:false"`
 	DeletedAt *time.Time `json:"deleted_at"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
@@ -43,7 +43,7 @@ type Sale struct {
 	Notes         string     `json:"notes"`
 	Total         float64    `json:"total"`
 	Synced        bool       `json:"synced"`
-	IsDeleted     bool       `json:"is_deleted"`
+	IsDeleted     bool       `json:"is_deleted" gorm:"default:false"`
 	DeletedAt     *time.Time `json:"deleted_at"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
@@ -58,7 +58,7 @@ type SaleItem struct {
 	Qty       int        `json:"qty"`
 	Price     float64    `json:"price"`
 	Synced    bool       `json:"synced"`
-	IsDeleted bool       `json:"is_deleted"`
+	IsDeleted bool       `json:"is_deleted" gorm:"default:false"`
 	DeletedAt *time.Time `json:"deleted_at"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
@@ -71,7 +71,7 @@ type StockOpname struct {
 	PerformedBy string            `json:"performed_by"`
 	Note        string            `json:"note"`
 	Synced      bool              `json:"synced"`
-	IsDeleted   bool              `json:"is_deleted"`
+	IsDeleted   bool              `json:"is_deleted" gorm:"default:false"`
 	DeletedAt   *time.Time        `json:"deleted_at"`
 	CreatedAt   time.Time         `json:"created_at"`
 	UpdatedAt   time.Time         `json:"updated_at"`
@@ -86,7 +86,7 @@ type StockOpnameItem struct {
 	SystemQty     int        `json:"system_qty"`
 	PhysicalQty   int        `json:"physical_qty"`
 	Synced        bool       `json:"synced"`
-	IsDeleted     bool       `json:"is_deleted"`
+	IsDeleted     bool       `json:"is_deleted" gorm:"default:false"`
 	DeletedAt     *time.Time `json:"deleted_at"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`

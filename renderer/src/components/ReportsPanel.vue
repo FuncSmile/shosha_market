@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { api } from '../api'
+import type { Branch } from '../api'
 import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
@@ -11,6 +12,16 @@ const { success, error } = useToast()
 const start = ref('')
 const end = ref('')
 const opnameId = ref('')
+const selectedBranchId = ref('')
+const branches = ref<Branch[]>([])
+
+onMounted(async () => {
+  try {
+    branches.value = await api.listBranches()
+  } catch (err) {
+    error((err as Error).message)
+  }
+})
 
 async function download(url: string, filename: string) {
   const a = document.createElement('a')
@@ -25,6 +36,30 @@ async function exportSales() {
     const url = await api.downloadSalesReport(start.value, end.value)
     await download(url, `sales_${start.value}_${end.value}.xlsx`)
     success('Laporan penjualan diunduh.')
+  } catch (err) {
+    error((err as Error).message)
+  }
+}
+
+async function exportSalesByBranch() {
+  if (!selectedBranchId.value) {
+    error('Pilih cabang terlebih dahulu.')
+    return
+  }
+  try {
+    const url = await api.downloadSalesReportByBranch(selectedBranchId.value, start.value, end.value)
+    await download(url, `sales_branch_${selectedBranchId.value}_${start.value}_${end.value}.xlsx`)
+    success('Laporan penjualan per cabang diunduh.')
+  } catch (err) {
+    error((err as Error).message)
+  }
+}
+
+async function exportSalesGlobal() {
+  try {
+    const url = await api.downloadSalesReportGlobal(start.value, end.value)
+    await download(url, `sales_global_${start.value}_${end.value}.xlsx`)
+    success('Laporan penjualan global (semua cabang) diunduh.')
   } catch (err) {
     error((err as Error).message)
   }
@@ -51,9 +86,61 @@ async function exportOpname() {
     </header>
 
     <div class="grid gap-4 lg:grid-cols-2">
+      <!-- Export per cabang -->
       <Card>
         <div class="p-4 space-y-3">
-          <p class="text-sm font-bold">Laporan Penjualan (.xlsx)</p>
+          <p class="text-sm font-bold">Laporan Penjualan Per Cabang (.xlsx)</p>
+          <div class="space-y-2">
+            <Label>Pilih Cabang</Label>
+            <select v-model="selectedBranchId" class="w-full px-3 py-2 border rounded-md bg-white text-slate-900">
+              <option value="">-- Pilih Cabang --</option>
+              <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                {{ branch.name }}
+              </option>
+            </select>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="space-y-1">
+              <Label>Mulai</Label>
+              <Input v-model="start" type="date" />
+            </div>
+            <div class="space-y-1">
+              <Label>Selesai</Label>
+              <Input v-model="end" type="date" />
+            </div>
+          </div>
+          <Button type="button" @click="exportSalesByBranch">Export Per Cabang</Button>
+          <p class="text-xs text-slate-400">
+            1 sheet dengan data penjualan cabang terpilih, dikelompokkan per tanggal.
+          </p>
+        </div>
+      </Card>
+
+      <!-- Export global (semua cabang) -->
+      <Card>
+        <div class="p-4 space-y-3">
+          <p class="text-sm font-bold">Laporan Penjualan Global (.xlsx)</p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="space-y-1">
+              <Label>Mulai</Label>
+              <Input v-model="start" type="date" />
+            </div>
+            <div class="space-y-1">
+              <Label>Selesai</Label>
+              <Input v-model="end" type="date" />
+            </div>
+          </div>
+          <Button type="button" @click="exportSalesGlobal">Export Global (Semua Cabang)</Button>
+          <p class="text-xs text-slate-400">
+            Multi-sheet Excel: 1 sheet per cabang, tiap sheet dikelompokkan per tanggal dengan kolom lebar rapi.
+          </p>
+        </div>
+      </Card>
+
+      <!-- Export penjualan (legacy) -->
+      <Card>
+        <div class="p-4 space-y-3">
+          <p class="text-sm font-bold">Laporan Penjualan (Legacy) (.xlsx)</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <div class="space-y-1">
               <Label>Mulai</Label>
@@ -71,6 +158,7 @@ async function exportOpname() {
         </div>
       </Card>
 
+      <!-- Export stock opname -->
       <Card>
         <div class="p-4 space-y-3">
           <p class="text-sm font-bold">Laporan Stock Opname (.xlsx)</p>

@@ -185,6 +185,22 @@ export const api = {
     return url;
   },
 
+  downloadSalesReportByBranch: async (branchId: string, start: string, end: string) => {
+    const res = await fetch(`${API_BASE}/reports/sales/branch/${encodeURIComponent(branchId)}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    return url;
+  },
+
+  downloadSalesReportGlobal: async (start: string, end: string) => {
+    const res = await fetch(`${API_BASE}/reports/sales/global?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    return url;
+  },
+
   downloadOpnameReport: async (id: string) => {
     const res = await fetch(`${API_BASE}/stock-opname/${id}/report`);
     if (!res.ok) throw new Error(await res.text());

@@ -57,4 +57,6 @@ func Register(r *gin.Engine, db *gorm.DB, cfg config.AppConfig, worker *syncsvc.
 	r.GET("/api/debug/unsynced", controllers.UnsyncedCounts(db))
 
 	r.GET("/api/reports/sales", controllers.SalesReport(db, cfg))
+	r.GET("/api/reports/sales/branch/:branch_id", controllers.SalesReportByBranch(db, cfg))
+	r.GET("/api/reports/sales/global", controllers.SalesReportGlobal(db, cfg))
 }
