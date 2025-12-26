@@ -95,4 +95,3 @@ func SalesReportGlobal(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 		c.FileAttachment(path, path)
 	}
 }
-
