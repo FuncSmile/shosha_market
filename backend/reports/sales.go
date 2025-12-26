@@ -84,7 +84,7 @@ func GenerateSalesReportByBranch(db *gorm.DB, cfg config.AppConfig, branchID str
 
 	// Group sales by date
 	grouped := groupSalesByDate(sales)
-	
+
 	branchName := branchID
 	if branchID != "" {
 		var branch models.Branch
@@ -205,7 +205,7 @@ func writeSalesSheet(f *excelize.File, sheetName, branchName string, start, end 
 	row := headerRow + 1
 	for _, date := range dates {
 		salesForDate := grouped[date]
-		
+
 		for idx, sale := range salesForDate {
 			// Date (only on first row of each date group)
 			if idx == 0 {
@@ -235,7 +235,7 @@ func writeSalesSheet(f *excelize.File, sheetName, branchName string, start, end 
 
 		f.SetCellValue(sheetName, dateCell, "")
 		f.SetCellValue(sheetName, labelCell, "Subtotal")
-		
+
 		subtotal := 0.0
 		for _, s := range salesForDate {
 			subtotal += s.Total
@@ -262,12 +262,12 @@ func sanitizeSheetName(name string) string {
 	for _, char := range invalid {
 		name = replaceAll(name, char, "_")
 	}
-	
+
 	// Limit to 31 characters
 	if len(name) > 31 {
 		name = name[:31]
 	}
-	
+
 	return name
 }
 
