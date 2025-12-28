@@ -469,6 +469,12 @@ function printReceipt() {
 
   printWindow.document.write(html)
   printWindow.document.close()
+  
+  // Auto-trigger print dialog
+  printWindow.onload = () => {
+    printWindow.focus()
+    printWindow.print()
+  }
 }
 
 function closePrintDialog() {

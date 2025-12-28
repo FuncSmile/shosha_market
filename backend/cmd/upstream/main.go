@@ -77,7 +77,7 @@ func main() {
 				}
 				if err := db.Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"code", "name", "address", "phone", "synced", "updated_at", "created_at"}),
+					DoUpdates: clause.AssignmentColumns([]string{"code", "name", "address", "phone", "synced", "is_deleted", "updated_at", "created_at"}),
 				}).Create(&b).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
@@ -95,7 +95,7 @@ func main() {
 				}
 				if err := db.Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"name", "unit", "stock", "price", "price_investor", "price_shosha", "branch_id", "synced", "updated_at", "created_at"}),
+					DoUpdates: clause.AssignmentColumns([]string{"name", "unit", "stock", "price", "price_investor", "price_shosha", "branch_id", "synced", "is_deleted", "updated_at", "created_at"}),
 				}).Create(&p).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
@@ -118,7 +118,7 @@ func main() {
 				}
 				if err := db.Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"receipt_no", "branch_id", "branch_name", "payment_method", "notes", "total", "synced", "updated_at", "created_at"}),
+					DoUpdates: clause.AssignmentColumns([]string{"receipt_no", "branch_id", "branch_name", "payment_method", "notes", "total", "synced", "is_deleted", "updated_at", "created_at"}),
 				}).Create(&s).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
@@ -136,7 +136,7 @@ func main() {
 				}
 				if err := db.Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "updated_at", "created_at"}),
+					DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "is_deleted", "updated_at", "created_at"}),
 				}).Create(&si).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
@@ -154,7 +154,7 @@ func main() {
 				}
 				if err := db.Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "updated_at", "created_at"}),
+					DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "is_deleted", "updated_at", "created_at"}),
 				}).Create(&so).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
@@ -172,7 +172,7 @@ func main() {
 				}
 				if err := db.Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "updated_at", "created_at"}),
+					DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "is_deleted", "updated_at", "created_at"}),
 				}).Create(&soi).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
@@ -208,15 +208,20 @@ func main() {
 		db.Find(&branches)
 		log.Printf("[SYNC] Branches found: %d, error: %v", len(branches), db.Error)
 		if branchID != "" {
-			db.Where("(updated_at >= ? OR created_at >= ?) AND branch_id = ?", since, since, branchID).Find(&sales)
+			db.Where("(updated_at >= ? OR created_at >= ?) AND branch_id = ?", since, since, branchID).Preload("Items").Find(&sales)
 		} else {
-			db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&sales)
+			db.Where("updated_at >= ? OR created_at >= ?", since, since).Preload("Items").Find(&sales)
 		}
+		log.Printf("[SYNC] Sales found: %d, error: %v", len(sales), db.Error)
+		log.Printf("[SYNC] Products found: %d", len(products))
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&items)
+		log.Printf("[SYNC] SaleItems found: %d", len(items))
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&opnames)
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&opItems)
 
 		now := time.Now().UTC()
+		log.Printf("[SYNC] Sending response: Products=%d, Branches=%d, Sales=%d, SaleItems=%d, Opnames=%d, OpItems=%d",
+			len(products), len(branches), len(sales), len(items), len(opnames), len(opItems))
 		c.JSON(http.StatusOK, ChangesResponse{
 			Products:         products,
 			Branches:         branches,

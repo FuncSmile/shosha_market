@@ -260,12 +260,12 @@ func (w *Worker) download(ctx context.Context) error {
 		return fmt.Errorf("decode changes: %w", err)
 	}
 	// Upsert: gunakan opsi berbeda per model agar tidak merujuk kolom yang tidak ada
-	saveOptsBranches := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"code", "name", "address", "phone", "synced", "updated_at", "created_at"})}
-	saveOptsProducts := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "unit", "stock", "price", "price_investor", "price_shosha", "branch_id", "synced", "updated_at", "created_at"})}
-	saveOptsSales := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"receipt_no", "branch_id", "branch_name", "payment_method", "notes", "total", "synced", "updated_at", "created_at"})}
-	saveOptsSaleItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "updated_at", "created_at"})}
-	saveOptsOpnames := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "updated_at", "created_at"})}
-	saveOptsOpItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "updated_at", "created_at"})}
+	saveOptsBranches := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"code", "name", "address", "phone", "synced", "is_deleted", "updated_at", "created_at"})}
+	saveOptsProducts := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "unit", "stock", "price", "price_investor", "price_shosha", "branch_id", "synced", "is_deleted", "updated_at", "created_at"})}
+	saveOptsSales := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"receipt_no", "branch_id", "branch_name", "payment_method", "notes", "total", "synced", "is_deleted", "updated_at", "created_at"})}
+	saveOptsSaleItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "is_deleted", "updated_at", "created_at"})}
+	saveOptsOpnames := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "is_deleted", "updated_at", "created_at"})}
+	saveOptsOpItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "is_deleted", "updated_at", "created_at"})}
 	// Set synced=true untuk semua data hasil download
 	for i := range data.Branches {
 		data.Branches[i].Synced = true
@@ -294,12 +294,24 @@ func (w *Worker) download(ctx context.Context) error {
 		log.Printf("[SYNC] downloaded products: %d, error: %v", len(data.Products), res.Error)
 	}
 	if len(data.Sales) > 0 {
+		log.Printf("[SYNC] Attempting to save %d sales records", len(data.Sales))
 		res := w.db.Clauses(saveOptsSales).Create(&data.Sales)
-		log.Printf("[SYNC] downloaded sales: %d, error: %v", len(data.Sales), res.Error)
+		log.Printf("[SYNC] downloaded sales: %d, rows affected: %d, error: %v", len(data.Sales), res.RowsAffected, res.Error)
+		if res.Error != nil {
+			log.Printf("[SYNC] Failed to save sales: %v", res.Error)
+		}
+	} else {
+		log.Printf("[SYNC] No sales data to download")
 	}
 	if len(data.SaleItems) > 0 {
+		log.Printf("[SYNC] Attempting to save %d sale_items records", len(data.SaleItems))
 		res := w.db.Clauses(saveOptsSaleItems).Create(&data.SaleItems)
-		log.Printf("[SYNC] downloaded sale_items: %d, error: %v", len(data.SaleItems), res.Error)
+		log.Printf("[SYNC] downloaded sale_items: %d, rows affected: %d, error: %v", len(data.SaleItems), res.RowsAffected, res.Error)
+		if res.Error != nil {
+			log.Printf("[SYNC] Failed to save sale_items: %v", res.Error)
+		}
+	} else {
+		log.Printf("[SYNC] No sale_items data to download")
 	}
 	if len(data.StockOpnames) > 0 {
 		res := w.db.Clauses(saveOptsOpnames).Create(&data.StockOpnames)
