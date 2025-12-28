@@ -216,8 +216,16 @@ func main() {
 		log.Printf("[SYNC] Sales found: %d, error: %v", len(sales), db.Error)
 		if len(sales) == 0 {
 			var totalSales int64
+			var sampleSales []models.Sale
 			db.Model(&models.Sale{}).Count(&totalSales)
+			db.Limit(5).Find(&sampleSales)
 			log.Printf("[SYNC] Total sales in DB: %d (not filtered by timestamp)", totalSales)
+			if len(sampleSales) > 0 {
+				log.Printf("[SYNC] Sample branch_ids in sales:")
+				for _, s := range sampleSales {
+					log.Printf("[SYNC]   - Sale ID=%s, BranchID='%s', ReceiptNo=%s", s.ID, s.BranchID, s.ReceiptNo)
+				}
+			}
 		}
 		log.Printf("[SYNC] Products found: %d", len(products))
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&items)
