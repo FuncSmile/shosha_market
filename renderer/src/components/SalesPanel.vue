@@ -43,12 +43,26 @@ const canEditPrice = computed(() => selectedBranch.value?.code?.trim().toLowerCa
 
 function getApplicablePrice(product: Product): number {
   const code = selectedBranch.value?.code?.trim().toLowerCase() || ''
+  
+  console.log('[Price Debug]', {
+    productName: product.name,
+    branchCode: code,
+    price: product.price,
+    price_investor: product.price_investor,
+    price_shosha: product.price_shosha
+  })
+  
   if (code === 'investor') {
-    return (product as any).price_investor ?? product.price
+    const finalPrice = product.price_investor ?? product.price
+    console.log(`→ Using Investor price: ${finalPrice}`)
+    return finalPrice
   }
   if (code === 'shosha') {
-    return (product as any).price_shosha ?? product.price
+    const finalPrice = product.price_shosha ?? product.price
+    console.log(`→ Using SHOSHA price: ${finalPrice}`)
+    return finalPrice
   }
+  console.log(`→ Using Normal price: ${product.price}`)
   return product.price
 }
 
