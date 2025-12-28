@@ -165,12 +165,14 @@ async function saveAll() {
       console.log(`[SaveAll] Row ${i}: name=${r.name}, unit=${r.unit}, price=${r.price}`)
     })
     const payload = bulkRows.value
-      .filter(r => (r.name && r.unit && (r.price ?? 0) > 0))
+      .filter(r => r.name?.trim() && r.unit?.trim() && (r.price ?? 0) > 0)
       .map(r => ({
         name: r.name!,
         unit: r.unit!,
         stock: Number(r.stock ?? 0),
-        price: Number(r.price ?? 0)
+        price: Number(r.price ?? 0),
+        price_investor: Number(r.price_investor ?? 0),
+        price_shosha: Number(r.price_shosha ?? 0)
       }))
     console.log('[ProductPanel] Filtered payload:', payload)
     if (!payload.length) {
@@ -201,7 +203,7 @@ async function saveAll() {
     await api.bulkCreateProducts(payload as any)
     console.log('[ProductPanel] bulkCreateProducts succeeded')
     success(`✓ Berhasil menyimpan ${payload.length} produk!`)
-    bulkRows.value = [{ name: '', unit: '', stock: 0, price: 0 }]
+    bulkRows.value = [{ name: '', unit: '', stock: 0, price: 0, price_investor: 0, price_shosha: 0 }]
     await load()
   } catch (err) {
     const errMsg = (err as Error).message
