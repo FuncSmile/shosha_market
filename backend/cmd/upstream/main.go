@@ -75,10 +75,10 @@ func main() {
 					}
 					continue
 				}
-			if err := db.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "id"}},
-				DoUpdates: clause.AssignmentColumns([]string{"code", "name", "address", "phone", "synced", "is_deleted", "updated_at", "created_at"}),
-			}).Create(&b).Error; err != nil {
+				if err := db.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "id"}},
+					DoUpdates: clause.AssignmentColumns([]string{"code", "name", "address", "phone", "synced", "is_deleted", "updated_at", "created_at"}),
+				}).Create(&b).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
@@ -116,10 +116,10 @@ func main() {
 					}
 					continue
 				}
-			if err := db.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "id"}},
-				DoUpdates: clause.AssignmentColumns([]string{"receipt_no", "branch_id", "branch_name", "payment_method", "notes", "total", "synced", "is_deleted", "updated_at", "created_at"}),
-			}).Create(&s).Error; err != nil {
+				if err := db.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "id"}},
+					DoUpdates: clause.AssignmentColumns([]string{"receipt_no", "branch_id", "branch_name", "payment_method", "notes", "total", "synced", "is_deleted", "updated_at", "created_at"}),
+				}).Create(&s).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
@@ -134,10 +134,10 @@ func main() {
 					}
 					continue
 				}
-			if err := db.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "id"}},
-				DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "is_deleted", "updated_at", "created_at"}),
-			}).Create(&si).Error; err != nil {
+				if err := db.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "id"}},
+					DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "is_deleted", "updated_at", "created_at"}),
+				}).Create(&si).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
@@ -152,10 +152,10 @@ func main() {
 					}
 					continue
 				}
-			if err := db.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "id"}},
-				DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "is_deleted", "updated_at", "created_at"}),
-			}).Create(&so).Error; err != nil {
+				if err := db.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "id"}},
+					DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "is_deleted", "updated_at", "created_at"}),
+				}).Create(&so).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
@@ -170,10 +170,10 @@ func main() {
 					}
 					continue
 				}
-			if err := db.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "id"}},
-				DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "is_deleted", "updated_at", "created_at"}),
-			}).Create(&soi).Error; err != nil {
+				if err := db.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "id"}},
+					DoUpdates: clause.AssignmentColumns([]string{"stock_opname_id", "product_id", "system_qty", "physical_qty", "synced", "is_deleted", "updated_at", "created_at"}),
+				}).Create(&soi).Error; err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
