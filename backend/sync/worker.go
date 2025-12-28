@@ -261,7 +261,7 @@ func (w *Worker) download(ctx context.Context) error {
 	}
 	// Upsert: gunakan opsi berbeda per model agar tidak merujuk kolom yang tidak ada
 	saveOptsBranches := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"code", "name", "address", "phone", "synced", "updated_at", "created_at"})}
-	saveOptsProducts := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "unit", "stock", "price", "branch_id", "synced", "updated_at", "created_at"})}
+	saveOptsProducts := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "unit", "stock", "price", "price_investor", "price_shosha", "branch_id", "synced", "updated_at", "created_at"})}
 	saveOptsSales := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"receipt_no", "branch_id", "branch_name", "payment_method", "notes", "total", "synced", "updated_at", "created_at"})}
 	saveOptsSaleItems := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"sale_id", "product_id", "qty", "price", "synced", "updated_at", "created_at"})}
 	saveOptsOpnames := clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoUpdates: clause.AssignmentColumns([]string{"branch_id", "performed_by", "note", "synced", "updated_at", "created_at"})}

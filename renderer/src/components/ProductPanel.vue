@@ -48,10 +48,10 @@ const paginatedList = computed(() => {
 
 // Bulk input table rows
 const bulkRows = ref<Array<Partial<Product>>>([
-  { name: '', unit: '', stock: 0, price: 0 },
+  { name: '', unit: '', stock: 0, price: 0, price_investor: 0, price_shosha: 0 },
 ])
 function addRow() {
-  bulkRows.value.push({ name: '', unit: '', stock: 0, price: 0 })
+  bulkRows.value.push({ name: '', unit: '', stock: 0, price: 0, price_investor: 0, price_shosha: 0 })
 }
 function removeRow(index: number) {
   bulkRows.value.splice(index, 1)
@@ -91,22 +91,24 @@ function parseAndAdd(text: string) {
   
   const lines = processed.split(/\r?\n/).filter(l => l.trim().length)
   if (!lines.length) {
-    warning('Tidak ada baris yang ditemukan. Pastikan format: Nama,Satuan,Stok,Harga')
+    warning('Tidak ada baris yang ditemukan. Pastikan format: Nama,Satuan,Stok,Harga Normal,Harga Investor,Harga SHOSHA')
     return
   }
   const delim = processed.includes('\t') ? '\t' : ','
   const newRows: Array<Partial<Product>> = []
   for (const line of lines) {
     const cols = splitCSV(line, delim).map(c => c.trim().replace(/^"|"$/g, ''))
-    const [name, unit, stockStr, priceStr] = cols
+    const [name, unit, stockStr, priceStr, priceInvestorStr, priceSoshaStr] = cols
     if (!name || !unit) {
       console.warn(`[Parse] Skipped row: missing name or unit. Got:`, { name, unit, stock: stockStr, price: priceStr })
       continue
     }
     const stock = parseInt(stockStr ?? '0', 10) || 0
     const price = parseFloat(priceStr ?? '0') || 0
-    console.log(`[Parse] ${name} | unit=${unit} stk=${stock} price=${price}`)
-    newRows.push({ name, unit, stock, price })
+    const priceInvestor = parseFloat(priceInvestorStr ?? '0') || price // Default ke harga normal jika kosong
+    const priceShosha = parseFloat(priceSoshaStr ?? '0') || price // Default ke harga normal jika kosong
+    console.log(`[Parse] ${name} | unit=${unit} stk=${stock} price=${price} investor=${priceInvestor} shosha=${priceShosha}`)
+    newRows.push({ name, unit, stock, price, price_investor: priceInvestor, price_shosha: priceShosha })
   }
   console.log(`[Parse] Total parsed rows: ${newRows.length} from ${lines.length} lines`)
   if (newRows.length) {
@@ -337,7 +339,7 @@ onMounted(load)
           </div>
           <div v-if="showPaste" class="mt-3 space-y-2">
             <p class="text-xs text-slate-400">Tempel baris dari Excel/CSV. Urutan kolom: Nama, Satuan, Stok, Harga. Pisahkan dengan TAB atau koma.</p>
-            <textarea v-model="pasteText" rows="5" class="w-full rounded  p-2 text-sm" placeholder="Contoh:\nSabun,pcs,10,5000\nBeras,kg,20,60000"></textarea>
+            <textarea v-model="pasteText" rows="5" class="w-full rounded  p-2 text-sm" placeholder="Contoh:\nSabun,pcs,10,5000,4500,4000\nBeras,kg,20,60000,58000,55000"></textarea>
             <div class="flex items-center gap-2">
               <Button class="text-xs" @click="applyPaste">Tambahkan</Button>
               <Button variant="ghost" class="text-xs" @click="showPaste = false">Batal</Button>
