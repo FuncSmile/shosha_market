@@ -299,11 +299,18 @@ func (w *Worker) download(ctx context.Context) error {
 	}
 	if len(data.Sales) > 0 {
 		log.Printf("[SYNC] Attempting to save %d sales records", len(data.Sales))
-		res := w.db.Clauses(saveOptsSales).Create(&data.Sales)
-		log.Printf("[SYNC] downloaded sales: %d, rows affected: %d, error: %v", len(data.Sales), res.RowsAffected, res.Error)
-		if res.Error != nil {
-			log.Printf("[SYNC] Failed to save sales: %v", res.Error)
+		successCount := 0
+		for idx, s := range data.Sales {
+			log.Printf("[SYNC] Sale[%d]: ID=%s, ReceiptNo=%s, BranchID=%s, Total=%.2f", 
+				idx, s.ID, s.ReceiptNo, s.BranchID, s.Total)
+			res := w.db.Clauses(saveOptsSales).Create(&s)
+			if res.Error != nil {
+				log.Printf("[SYNC] Failed to save sale[%d] ID=%s: %v", idx, s.ID, res.Error)
+			} else {
+				successCount++
+			}
 		}
+		log.Printf("[SYNC] downloaded sales: %d/%d successful", successCount, len(data.Sales))
 	} else {
 		log.Printf("[SYNC] No sales data to download")
 	}
