@@ -195,7 +195,6 @@ func main() {
 		} else {
 			since = time.Time{} // epoch -> all data
 		}
-		branchID := c.Query("branch_id")
 		var (
 			products []models.Product
 			branches []models.Branch
@@ -207,12 +206,11 @@ func main() {
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&products)
 		db.Find(&branches)
 		log.Printf("[SYNC] Branches found: %d, error: %v", len(branches), db.Error)
-		log.Printf("[SYNC] Querying sales with since: %v, branchID: %s", since, branchID)
-		if branchID != "" {
-			db.Where("(updated_at >= ? OR created_at >= ?) AND branch_id = ?", since, since, branchID).Preload("Items").Find(&sales)
-		} else {
-			db.Where("updated_at >= ? OR created_at >= ?", since, since).Preload("Items").Find(&sales)
-		}
+		
+		// Query sales without branch_id filter since client sends branch code but DB has branch UUID
+		// Client can filter locally if needed
+		log.Printf("[SYNC] Querying sales with since: %v", since)
+		db.Where("updated_at >= ? OR created_at >= ?", since, since).Preload("Items").Find(&sales)
 		log.Printf("[SYNC] Sales found: %d, error: %v", len(sales), db.Error)
 		if len(sales) == 0 {
 			var totalSales int64
