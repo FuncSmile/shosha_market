@@ -214,12 +214,22 @@ func (w *Worker) upload(ctx context.Context) error {
 func (w *Worker) download(ctx context.Context) error {
 	var syncState models.SyncState
 	_ = w.db.First(&syncState, "id = ?", "singleton").Error
+	
+	// Check if we need a full sync (e.g., sales table is empty but sync_state has timestamp)
+	var salesCount int64
+	w.db.Model(&models.Sale{}).Count(&salesCount)
+	
 	last := ""
-	if syncState.LastSyncAt != nil {
+	if syncState.LastSyncAt != nil && salesCount > 0 {
 		last = syncState.LastSyncAt.UTC().Format(time.RFC3339)
-		log.Printf("[SYNC] Last sync was at: %s", last)
+		log.Printf("[SYNC] Last sync was at: %s, sales in local DB: %d", last, salesCount)
 	} else {
-		log.Printf("[SYNC] No previous sync timestamp, will fetch all data")
+		if syncState.LastSyncAt != nil && salesCount == 0 {
+			log.Printf("[SYNC] Last sync timestamp exists (%s) but sales table is empty - forcing full sync", 
+				syncState.LastSyncAt.UTC().Format(time.RFC3339))
+		} else {
+			log.Printf("[SYNC] No previous sync timestamp, will fetch all data")
+		}
 	}
 	url := strings.TrimSuffix(w.cfg.Upstream, "/") + "/api/sync/changes"
 	// build query params
