@@ -207,12 +207,18 @@ func main() {
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&products)
 		db.Find(&branches)
 		log.Printf("[SYNC] Branches found: %d, error: %v", len(branches), db.Error)
+		log.Printf("[SYNC] Querying sales with since: %v, branchID: %s", since, branchID)
 		if branchID != "" {
 			db.Where("(updated_at >= ? OR created_at >= ?) AND branch_id = ?", since, since, branchID).Preload("Items").Find(&sales)
 		} else {
 			db.Where("updated_at >= ? OR created_at >= ?", since, since).Preload("Items").Find(&sales)
 		}
 		log.Printf("[SYNC] Sales found: %d, error: %v", len(sales), db.Error)
+		if len(sales) == 0 {
+			var totalSales int64
+			db.Model(&models.Sale{}).Count(&totalSales)
+			log.Printf("[SYNC] Total sales in DB: %d (not filtered by timestamp)", totalSales)
+		}
 		log.Printf("[SYNC] Products found: %d", len(products))
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&items)
 		log.Printf("[SYNC] SaleItems found: %d", len(items))

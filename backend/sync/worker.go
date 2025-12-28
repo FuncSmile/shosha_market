@@ -217,6 +217,9 @@ func (w *Worker) download(ctx context.Context) error {
 	last := ""
 	if syncState.LastSyncAt != nil {
 		last = syncState.LastSyncAt.UTC().Format(time.RFC3339)
+		log.Printf("[SYNC] Last sync was at: %s", last)
+	} else {
+		log.Printf("[SYNC] No previous sync timestamp, will fetch all data")
 	}
 	url := strings.TrimSuffix(w.cfg.Upstream, "/") + "/api/sync/changes"
 	// build query params
@@ -301,7 +304,7 @@ func (w *Worker) download(ctx context.Context) error {
 		log.Printf("[SYNC] Attempting to save %d sales records", len(data.Sales))
 		successCount := 0
 		for idx, s := range data.Sales {
-			log.Printf("[SYNC] Sale[%d]: ID=%s, ReceiptNo=%s, BranchID=%s, Total=%.2f", 
+			log.Printf("[SYNC] Sale[%d]: ID=%s, ReceiptNo=%s, BranchID=%s, Total=%.2f",
 				idx, s.ID, s.ReceiptNo, s.BranchID, s.Total)
 			res := w.db.Clauses(saveOptsSales).Create(&s)
 			if res.Error != nil {
