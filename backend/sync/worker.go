@@ -275,12 +275,16 @@ func (w *Worker) download(ctx context.Context) error {
 	}
 	for i := range data.Sales {
 		data.Sales[i].Synced = true
+		// Clear Items relation to avoid conflict during upsert
+		data.Sales[i].Items = nil
 	}
 	for i := range data.SaleItems {
 		data.SaleItems[i].Synced = true
 	}
 	for i := range data.StockOpnames {
 		data.StockOpnames[i].Synced = true
+		// Clear Items relation to avoid conflict during upsert
+		data.StockOpnames[i].Items = nil
 	}
 	for i := range data.StockOpnameItems {
 		data.StockOpnameItems[i].Synced = true
