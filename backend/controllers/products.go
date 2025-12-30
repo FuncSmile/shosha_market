@@ -30,7 +30,7 @@ func CreateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 			Name          string  `json:"name" binding:"required"`
 			Unit          string  `json:"unit" binding:"required"`
 			Stock         int     `json:"stock"`
-			Price         float64 `json:"price" binding:"required,gt=0"`
+			Price         float64 `json:"price"` // Optional, will be set from investor/shosha
 			PriceInvestor float64 `json:"price_investor"`
 			PriceShosha   float64 `json:"price_shosha"`
 		}
@@ -38,22 +38,39 @@ func CreateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		// Validasi: minimal salah satu harga harus > 0
+		if payload.PriceInvestor <= 0 && payload.PriceShosha <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "at least one price (investor or shosha) must be greater than 0"})
+			return
+		}
+
+		// Set price dari investor atau shosha jika tidak diisi
+		price := payload.Price
+		if price <= 0 {
+			if payload.PriceInvestor > 0 {
+				price = payload.PriceInvestor
+			} else {
+				price = payload.PriceShosha
+			}
+		}
+
 		product := models.Product{
 			ID:            uuid.NewString(),
 			Name:          payload.Name,
 			Unit:          payload.Unit,
 			Stock:         payload.Stock,
-			Price:         payload.Price,
+			Price:         price,
 			PriceInvestor: payload.PriceInvestor,
 			PriceShosha:   payload.PriceShosha,
 			Synced:        false,
 			BranchID:      cfg.BranchID,
 		}
-		// Backward compat: default specific prices to Price if not provided
-		if product.PriceInvestor == 0 {
+		// Default values jika salah satu kosong
+		if product.PriceInvestor <= 0 {
 			product.PriceInvestor = product.Price
 		}
-		if product.PriceShosha == 0 {
+		if product.PriceShosha <= 0 {
 			product.PriceShosha = product.Price
 		}
 		if err := db.Create(&product).Error; err != nil {
@@ -71,7 +88,7 @@ func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 		var payload struct {
 			Name          string  `json:"name"`
 			Unit          string  `json:"unit"`
-			Stock         int     `json:"stock"`
+			Stock         *int    `json:"stock"` // pointer untuk detect null
 			Price         float64 `json:"price"`
 			PriceInvestor float64 `json:"price_investor"`
 			PriceShosha   float64 `json:"price_shosha"`
@@ -88,15 +105,28 @@ func UpdateProduct(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Update product; use map to ensure Synced=false is written even though it's a zero-value bool
+		// Build updates map hanya untuk field yang dikirim
 		updates := map[string]interface{}{
-			"name":           payload.Name,
-			"unit":           payload.Unit,
-			"stock":          payload.Stock,
-			"price":          payload.Price,
-			"price_investor": payload.PriceInvestor,
-			"price_shosha":   payload.PriceShosha,
-			"synced":         false, // Mark as unsynced when updated
+			"synced": false, // Always mark as unsynced
+		}
+
+		if payload.Name != "" {
+			updates["name"] = payload.Name
+		}
+		if payload.Unit != "" {
+			updates["unit"] = payload.Unit
+		}
+		if payload.Stock != nil {
+			updates["stock"] = *payload.Stock
+		}
+		if payload.Price > 0 {
+			updates["price"] = payload.Price
+		}
+		if payload.PriceInvestor > 0 {
+			updates["price_investor"] = payload.PriceInvestor
+		}
+		if payload.PriceShosha > 0 {
+			updates["price_shosha"] = payload.PriceShosha
 		}
 
 		if err := db.Model(&product).Updates(updates).Error; err != nil {
@@ -144,7 +174,7 @@ func BulkCreateProducts(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 		Name          string  `json:"name" binding:"required"`
 		Unit          string  `json:"unit" binding:"required"`
 		Stock         int     `json:"stock"`
-		Price         float64 `json:"price" binding:"required,gt=0"`
+		Price         float64 `json:"price"`
 		PriceInvestor float64 `json:"price_investor"`
 		PriceShosha   float64 `json:"price_shosha"`
 	}
@@ -156,21 +186,40 @@ func BulkCreateProducts(db *gorm.DB, cfg config.AppConfig) gin.HandlerFunc {
 		}
 		created := make([]models.Product, 0, len(rows))
 		for _, r := range rows {
+			// Validasi: minimal salah satu harga > 0
+			if r.PriceInvestor <= 0 && r.PriceShosha <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "at least one price (investor or shosha) must be greater than 0 for product: " + r.Name,
+				})
+				return
+			}
+
+			// Set price dari investor atau shosha jika tidak diisi
+			price := r.Price
+			if price <= 0 {
+				if r.PriceInvestor > 0 {
+					price = r.PriceInvestor
+				} else {
+					price = r.PriceShosha
+				}
+			}
+
 			p := models.Product{
 				ID:            uuid.NewString(),
 				Name:          r.Name,
 				Unit:          r.Unit,
 				Stock:         r.Stock,
-				Price:         r.Price,
+				Price:         price,
 				PriceInvestor: r.PriceInvestor,
 				PriceShosha:   r.PriceShosha,
 				Synced:        false,
 				BranchID:      cfg.BranchID,
 			}
-			if p.PriceInvestor == 0 {
+			// Default values jika salah satu kosong
+			if p.PriceInvestor <= 0 {
 				p.PriceInvestor = p.Price
 			}
-			if p.PriceShosha == 0 {
+			if p.PriceShosha <= 0 {
 				p.PriceShosha = p.Price
 			}
 			if err := db.Create(&p).Error; err != nil {

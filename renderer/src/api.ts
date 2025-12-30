@@ -164,7 +164,17 @@ export const api = {
 
   listSales: () => request<Sale[]>('/sales'),
   getSale: (id: string) => request<Sale>(`/sales/${id}`),
+  updateSale: (id: string, payload: { created_at?: string; branch_id?: string; payment_method?: string; notes?: string }) =>
+    request<Sale>(`/sales/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteSale: (id: string) => request<void>(`/sales/${id}`, { method: 'DELETE' }),
+  
+  // Sale Items CRUD
+  updateSaleItem: (saleId: string, itemId: string, payload: { qty: number; price: number }) =>
+    request<SaleItem>(`/sales/${saleId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  addSaleItem: (saleId: string, payload: { product_id: string; qty: number; price?: number }) =>
+    request<SaleItem>(`/sales/${saleId}/items`, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteSaleItem: (saleId: string, itemId: string) => 
+    request<void>(`/sales/${saleId}/items/${itemId}`, { method: 'DELETE' }),
   
   exportSales: async () => {
     const res = await fetch(`${API_BASE}/sales/export`);

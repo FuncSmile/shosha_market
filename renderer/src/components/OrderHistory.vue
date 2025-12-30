@@ -4,6 +4,14 @@ import { api, type Sale, type SaleItem, type Product, type Branch } from '../api
 import { toast } from 'vue-sonner'
 import Card from './ui/Card.vue'
 import Button from './ui/Button.vue'
+import Label from './ui/Label.vue'
+import Input from './ui/Input.vue'
+import Select from './ui/Select.vue'
+import BranchSelect from './ui/BranchSelect.vue'
+import Accordion from './ui/Accordion.vue'
+import AccordionItem from './ui/AccordionItem.vue'
+import AccordionTrigger from './ui/AccordionTrigger.vue'
+import AccordionContent from './ui/AccordionContent.vue'
 
 const sales = ref<Sale[]>([])
 const loading = ref(false)
@@ -15,6 +23,21 @@ const selected = ref<Sale | null>(null)
 type AugmentedItem = SaleItem & { name?: string; unit?: string; subtotal?: number }
 const items = ref<AugmentedItem[]>([])
 
+const showEditDialog = ref(false)
+const editingSale = ref<Sale | null>(null)
+const editForm = ref<{
+  created_at: string
+  branch_id: string
+  payment_method: string
+  notes: string
+}>({
+  created_at: '',
+  branch_id: '',
+  payment_method: 'cash',
+  notes: ''
+})
+const savingEdit = ref(false)
+
 const products = ref<Product[]>([])
 const branches = ref<Branch[]>([])
 
@@ -23,9 +46,19 @@ const searchCode = ref('')
 const showPrintDialog = ref(false)
 const printData = ref<any>(null)
 
-const sortKey = ref<'created_at' | 'branch_code'>('created_at')
-const sortDir = ref<'asc' | 'desc'>('desc')
 const dateRange = ref<{ start: string; end: string }>({ start: '', end: '' })
+
+// Products edit dialog state
+const showProductsEditDialog = ref(false)
+const editingProductsForSale = ref<Sale | null>(null)
+const editingItems = ref<(SaleItem & { name?: string; unit?: string })[]>([])
+const newItemForm = ref<{ product_id: string; qty: number; price: number }>({
+  product_id: '',
+  qty: 1,
+  price: 0
+})
+const savingProducts = ref(false)
+
 
 const branchMap = computed(() => Object.fromEntries(branches.value.map(b => [b.id, b])))
 
@@ -55,13 +88,34 @@ const displayedSales = computed(() => {
       }
       return true
     })
-    .sort((a, b) => {
-      const dir = sortDir.value === 'asc' ? 1 : -1
-      if (sortKey.value === 'branch_code') {
-        return a.branch_code.localeCompare(b.branch_code) * dir
+})
+
+// Group sales by branch
+const groupedByBranch = computed(() => {
+  const groups = new Map<string, typeof displayedSales.value>()
+  
+  displayedSales.value.forEach(sale => {
+    const branchKey = sale.branch_name_resolved || 'Unknown'
+    if (!groups.has(branchKey)) {
+      groups.set(branchKey, [])
+    }
+    groups.get(branchKey)!.push(sale)
+  })
+  
+  // Convert to array and sort by branch name
+  return Array.from(groups.entries())
+    .map(([branchName, salesList]) => {
+      const total = salesList.reduce((sum, s) => sum + (s.total || 0), 0)
+      const branchCode = salesList[0]?.branch_code || ''
+      return {
+        branchName,
+        branchCode,
+        sales: salesList,
+        total,
+        count: salesList.length
       }
-      return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir
     })
+    .sort((a, b) => a.branchName.localeCompare(b.branchName))
 })
 
 async function load() {
@@ -80,17 +134,30 @@ function setDefaultMonth() {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), 1)
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  const toISO = (d: Date) => d.toISOString().slice(0, 10)
-  dateRange.value = { start: toISO(start), end: toISO(end) }
+  const toLocalISO = (d: Date) => {
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  dateRange.value = { start: toLocalISO(start), end: toLocalISO(end) }
 }
 
-function toggleSort(key: 'created_at' | 'branch_code') {
-  if (sortKey.value === key) {
-    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortKey.value = key
-    sortDir.value = 'asc'
+function setDefaultYear() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), 0, 1) // 1 Januari tahun ini
+  const end = new Date(now.getFullYear(), 11, 31) // 31 Desember tahun ini
+  const toLocalISO = (d: Date) => {
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
+  dateRange.value = { start: toLocalISO(start), end: toLocalISO(end) }
+}
+
+function clearDateFilter() {
+  dateRange.value = { start: '', end: '' }
 }
 
 async function openDetail(id: string) {
@@ -115,6 +182,165 @@ function closeDetail() {
   selected.value = null
   items.value = []
 }
+
+function openEditDialog(sale: Sale) {
+  editingSale.value = sale
+  editForm.value = {
+    created_at: sale.created_at.slice(0, 10), // Format to YYYY-MM-DD
+    branch_id: sale.branch_id,
+    payment_method: sale.payment_method,
+    notes: sale.notes || ''
+  }
+  showEditDialog.value = true
+}
+
+function closeEditDialog() {
+  showEditDialog.value = false
+  editingSale.value = null
+  editForm.value = {
+    created_at: '',
+    branch_id: '',
+    payment_method: 'cash',
+    notes: ''
+  }
+}
+
+async function saveEdit() {
+  if (!editingSale.value) return
+  
+  savingEdit.value = true
+  try {
+    await api.updateSale(editingSale.value.id, {
+      created_at: editForm.value.created_at,
+      branch_id: editForm.value.branch_id,
+      payment_method: editForm.value.payment_method,
+      notes: editForm.value.notes
+    })
+    
+    toast.success('Transaksi berhasil diupdate')
+    closeEditDialog()
+    await load() // Reload data
+  } catch (err) {
+    toast.error((err as Error).message)
+  } finally {
+    savingEdit.value = false
+  }
+}
+
+// Products edit dialog functions
+function openProductsEditDialog(sale: Sale) {
+  editingProductsForSale.value = sale
+  const productMap = Object.fromEntries(products.value.map(p => [p.id, p]))
+  editingItems.value = sale.items.map(item => {
+    const product = productMap[item.product_id]
+    return {
+      ...item,
+      name: product?.name,
+      unit: product?.unit
+    }
+  })
+  newItemForm.value = { product_id: '', qty: 1, price: 0 }
+  showProductsEditDialog.value = true
+}
+
+function closeProductsEditDialog() {
+  showProductsEditDialog.value = false
+  editingProductsForSale.value = null
+  editingItems.value = []
+  newItemForm.value = { product_id: '', qty: 1, price: 0 }
+}
+
+async function addProductToSale() {
+  if (!editingProductsForSale.value || !newItemForm.value.product_id || newItemForm.value.qty <= 0) {
+    toast.error('Pilih produk dan masukkan qty > 0')
+    return
+  }
+
+  savingProducts.value = true
+  try {
+    const product = products.value.find(p => p.id === newItemForm.value.product_id)
+    if (!product) {
+      toast.error('Produk tidak ditemukan')
+      return
+    }
+
+    const price = newItemForm.value.price > 0 ? newItemForm.value.price : product.price
+    
+    const newItem = await api.addSaleItem(editingProductsForSale.value.id, {
+      product_id: newItemForm.value.product_id,
+      qty: newItemForm.value.qty,
+      price: price
+    })
+
+    toast.success('Produk berhasil ditambahkan')
+    // Update editing items list
+    editingItems.value.push({
+      ...newItem,
+      name: product.name,
+      unit: product.unit
+    })
+    newItemForm.value = { product_id: '', qty: 1, price: 0 }
+  } catch (err) {
+    toast.error((err as Error).message)
+  } finally {
+    savingProducts.value = false
+  }
+}
+
+async function updateProductInSale(item: SaleItem, newQty: number, newPrice: number) {
+  if (!editingProductsForSale.value || newQty <= 0 || newPrice <= 0) {
+    toast.error('Qty dan price harus > 0')
+    return
+  }
+
+  savingProducts.value = true
+  try {
+    await api.updateSaleItem(editingProductsForSale.value.id, item.id, {
+      qty: newQty,
+      price: newPrice
+    })
+    
+    toast.success('Produk berhasil diupdate')
+    
+    // Update in local list
+    const idx = editingItems.value.findIndex(i => i.id === item.id)
+    if (idx >= 0) {
+      editingItems.value[idx].qty = newQty
+      editingItems.value[idx].price = newPrice
+    }
+  } catch (err) {
+    toast.error((err as Error).message)
+  } finally {
+    savingProducts.value = false
+  }
+}
+
+async function deleteProductFromSale(itemId: string) {
+  if (!editingProductsForSale.value) return
+
+  if (!confirm('Yakin hapus produk ini?')) return
+
+  savingProducts.value = true
+  try {
+    await api.deleteSaleItem(editingProductsForSale.value.id, itemId)
+    
+    toast.success('Produk berhasil dihapus')
+    editingItems.value = editingItems.value.filter(i => i.id !== itemId)
+    
+    // Reload full data to get updated total
+    await load()
+  } catch (err) {
+    toast.error((err as Error).message)
+  } finally {
+    savingProducts.value = false
+  }
+}
+
+async function closeAndReloadProducts() {
+  closeProductsEditDialog()
+  await load()
+}
+
 
 async function exportData() {
   exporting.value = true
@@ -638,7 +864,8 @@ function fmtDate(s: string) {
 }
 
 onMounted(async () => {
-  setDefaultMonth()
+  // Don't set default date range - show all data by default
+  // User can click "Bulan ini" or "Tahun ini" to filter
   await Promise.all([
     load(),
     api.listProducts().then(p => (products.value = p)),
@@ -677,53 +904,74 @@ onMounted(async () => {
             <label class="block text-xs text-slate-500">Tanggal Akhir</label>
             <input v-model="dateRange.end" type="date" class="border border-slate-200 rounded px-2 py-1 text-sm" />
           </div>
-          <Button variant="ghost" class="text-emerald-600" @click="setDefaultMonth">Bulan ini</Button>
+          <Button variant="ghost" size="sm" class="text-emerald-600" @click="setDefaultMonth">Bulan ini</Button>
+          <Button variant="ghost" size="sm" class="text-blue-600" @click="setDefaultYear">Tahun ini</Button>
+          <Button variant="ghost" size="sm" class="text-slate-600" @click="clearDateFilter">Tampilkan Semua</Button>
           <div>
             <label class="block text-xs text-slate-500">Filter Kode Cabang</label>
             <input v-model="searchCode" type="text" placeholder="Mis. SHOSHA" class="border border-slate-200 rounded px-2 py-1 text-sm" />
           </div>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm text-left text-slate-700">
-            <thead>
-              <tr class="bg-white border border-slate-200">
-                <th class="px-3 py-2 cursor-pointer select-none" @click="toggleSort('created_at')">
-                  Tanggal
-                  <span v-if="sortKey === 'created_at'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
-                </th>
-                <th class="px-3 py-2">Kode</th>
-                <th class="px-3 py-2">Cabang</th>
-                <th class="px-3 py-2">No. Invoice</th>
-                <th class="px-3 py-2">Metode</th>
-                <th class="px-3 py-2 text-right">Total</th>
-                <th class="px-3 py-2">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="s in displayedSales" :key="s.id" class="border border-slate-200 hover:bg-slate-50">
-                <td class="px-3 py-2">{{ fmtDate(s.created_at) }}</td>
-                <td class="px-3 py-2 cursor-pointer select-none" @click="toggleSort('branch_code')">
-                  <span class="font-semibold">{{ s.branch_code || '-' }}</span>
-                  <span v-if="sortKey === 'branch_code'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
-                </td>
-                <td class="px-3 py-2">
-                  <button class="text-emerald-600 hover:underline" @click="openDetail(s.id)">
-                    {{ s.branch_name_resolved || s.branch_id || '-' }}
-                  </button>
-                </td>
-                <td class="px-3 py-2">{{ s.receipt_no }}</td>
-                <td class="px-3 py-2 uppercase">{{ s.payment_method }}</td>
-                <td class="px-3 py-2 text-right">{{ fmtCurrency(s.total) }}</td>
-                <td class="px-3 py-2">
-                  <Button size="sm" @click="openDetail(s.id)">Detail</Button>
-                </td>
-              </tr>
-              <tr v-if="displayedSales.length === 0 && !loading">
-                <td colspan="7" class="px-3 py-4 text-center text-slate-500">Belum ada transaksi</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Grouped by Branch with Accordion -->
+        <div v-if="!loading && groupedByBranch.length > 0" class="mt-4">
+          <div class="mb-3 text-sm text-slate-600">
+            Total: {{ groupedByBranch.length }} cabang, {{ displayedSales.length }} transaksi
+          </div>
+          
+          <Accordion type="multiple" class="w-full">
+            <AccordionItem v-for="group in groupedByBranch" :key="group.branchName" :value="group.branchName">
+              <AccordionTrigger>
+                <div class="flex items-center justify-between w-full pr-4">
+                  <div class="flex items-center gap-3">
+                    <span class="font-bold text-emerald-600">{{ group.branchCode || 'N/A' }}</span>
+                    <span class="font-semibold text-slate-900">{{ group.branchName }}</span>
+                    <span class="text-xs bg-slate-100 px-2 py-1 rounded">{{ group.count }} transaksi</span>
+                  </div>
+                  <span class="font-semibold text-slate-900">{{ fmtCurrency(group.total) }}</span>
+                </div>
+              </AccordionTrigger>
+              
+              <AccordionContent>
+                <div class="px-4">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="text-left text-slate-500 border-b">
+                        <th class="py-2 px-2">Tanggal</th>
+                        <th class="py-2 px-2">No. Invoice</th>
+                        <th class="py-2 px-2">Metode</th>
+                        <th class="py-2 px-2 text-right">Total</th>
+                        <th class="py-2 px-2">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="s in group.sales" :key="s.id" class="border-b hover:bg-slate-50">
+                        <td class="py-2 px-2">{{ fmtDate(s.created_at) }}</td>
+                        <td class="py-2 px-2 font-mono text-xs">{{ s.receipt_no }}</td>
+                        <td class="py-2 px-2">
+                          <span class="uppercase text-xs px-2 py-1 rounded" :class="s.payment_method === 'cash' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'">
+                            {{ s.payment_method }}
+                          </span>
+                        </td>
+                        <td class="py-2 px-2 text-right font-semibold">{{ fmtCurrency(s.total) }}</td>
+                        <td class="py-2 px-2">
+                          <div class="flex gap-1">
+                            <Button size="sm" variant="ghost" @click="openEditDialog(s)">Edit</Button>
+                            <Button size="sm" variant="ghost" @click="openProductsEditDialog(s)">Edit Produk</Button>
+                            <Button size="sm" variant="outline" @click="openDetail(s.id)">Detail</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+
+        <div v-if="!loading && displayedSales.length === 0" class="py-8 text-center text-slate-500">
+          Belum ada transaksi
         </div>
       </div>
     </Card>
@@ -777,6 +1025,172 @@ onMounted(async () => {
               <Button @click="downloadPDF">Download PDF</Button>
               <Button variant="ghost" @click="closeDetail">Tutup</Button>
             </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+
+    <!-- Edit Transaction Modal -->
+    <div v-if="showEditDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click="closeEditDialog">
+      <Card class="max-w-lg w-full" @click.stop>
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="text-lg font-semibold text-slate-900">Edit Transaksi</h3>
+            <Button variant="ghost" size="sm" @click="closeEditDialog">✕</Button>
+          </div>
+
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <Label>Tanggal Transaksi</Label>
+              <Input v-model="editForm.created_at" type="date" />
+            </div>
+
+            <div class="space-y-1">
+              <Label>Cabang Pembeli</Label>
+              <BranchSelect v-model="editForm.branch_id" :branches="branches" />
+            </div>
+
+            <div class="space-y-1">
+              <Label>Metode Pembayaran</Label>
+              <Select v-model="editForm.payment_method">
+                <option value="cash">Cash (Tunai)</option>
+                <option value="hutang">Hutang</option>
+              </Select>
+            </div>
+
+            <div class="space-y-1">
+              <Label>Catatan</Label>
+              <textarea 
+                v-model="editForm.notes" 
+                class="w-full border border-slate-200 rounded px-3 py-2 text-sm"
+                rows="3"
+                placeholder="Catatan tambahan..."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="ghost" @click="closeEditDialog" :disabled="savingEdit">Batal</Button>
+            <Button @click="saveEdit" :disabled="savingEdit">
+              {{ savingEdit ? 'Menyimpan...' : 'Simpan Perubahan' }}
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+
+    <!-- Edit Products Modal -->
+    <div v-if="showProductsEditDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click="closeProductsEditDialog">
+      <Card class="max-w-2xl w-full max-h-96 overflow-y-auto" @click.stop>
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between border-b pb-3 sticky top-0 bg-white">
+            <h3 class="text-lg font-semibold text-slate-900">Edit Produk - {{ editingProductsForSale?.receipt_no }}</h3>
+            <Button variant="ghost" size="sm" @click="closeProductsEditDialog">✕</Button>
+          </div>
+
+          <!-- Current Products Table -->
+          <div class="space-y-2">
+            <h4 class="font-semibold text-slate-700">Produk Saat Ini</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm border-collapse">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="py-2 px-2 text-left">Produk</th>
+                    <th class="py-2 px-2 text-center">Qty</th>
+                    <th class="py-2 px-2 text-right">Harga</th>
+                    <th class="py-2 px-2 text-right">Subtotal</th>
+                    <th class="py-2 px-2 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in editingItems" :key="item.id" class="border-t">
+                    <td class="py-2 px-2">
+                      <div>
+                        <div class="font-medium text-slate-900">{{ item.name }}</div>
+                        <div class="text-xs text-slate-500">{{ item.unit || '-' }}</div>
+                      </div>
+                    </td>
+                    <td class="py-2 px-2">
+                      <Input 
+                        :model-value="item.qty" 
+                        @update:model-value="(v) => {
+                          const num = parseInt(v as string) || 0
+                          if (num > 0) updateProductInSale(item, num, item.price)
+                        }"
+                        type="number" 
+                        min="1"
+                        class="w-20"
+                      />
+                    </td>
+                    <td class="py-2 px-2 text-right">
+                      <Input 
+                        :model-value="item.price.toString()" 
+                        @update:model-value="(v) => {
+                          const num = parseFloat(v as string) || 0
+                          if (num > 0) updateProductInSale(item, item.qty, num)
+                        }"
+                        type="number" 
+                        min="0"
+                        step="0.01"
+                        class="w-28 text-right"
+                      />
+                    </td>
+                    <td class="py-2 px-2 text-right font-semibold">
+                      {{ fmtCurrency(item.qty * item.price) }}
+                    </td>
+                    <td class="py-2 px-2 text-center">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        @click="deleteProductFromSale(item.id)"
+                        :disabled="savingProducts"
+                        class="text-red-600 hover:text-red-700"
+                      >
+                        Hapus
+                      </Button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Add New Product -->
+          <div class="border-t pt-4 space-y-3">
+            <h4 class="font-semibold text-slate-700">Tambah Produk</h4>
+            <div class="grid grid-cols-3 gap-2">
+              <div class="space-y-1">
+                <Label>Produk</Label>
+                <Select v-model="newItemForm.product_id">
+                  <option value="">Pilih Produk</option>
+                  <option v-for="p in products" :key="p.id" :value="p.id">
+                    {{ p.name }}
+                  </option>
+                </Select>
+              </div>
+              <div class="space-y-1">
+                <Label>Qty</Label>
+                <Input v-model.number="newItemForm.qty" type="number" min="1" />
+              </div>
+              <div class="space-y-1">
+                <Label>Harga</Label>
+                <Input v-model.number="newItemForm.price" type="number" min="0" step="0.01" />
+              </div>
+            </div>
+            <Button 
+              @click="addProductToSale" 
+              :disabled="savingProducts || !newItemForm.product_id"
+              class="w-full"
+            >
+              {{ savingProducts ? 'Menyimpan...' : 'Tambah Produk' }}
+            </Button>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="ghost" @click="closeProductsEditDialog" :disabled="savingProducts">Tutup</Button>
+            <Button @click="closeAndReloadProducts" :disabled="savingProducts">
+              {{ savingProducts ? 'Menyimpan...' : 'Selesai' }}
+            </Button>
           </div>
         </div>
       </Card>

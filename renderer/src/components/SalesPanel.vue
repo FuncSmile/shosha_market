@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch, nextTick } from 'vue'
 import { api, type Branch, type Product } from '../api'
 import { useToast } from '../composables/useToast'
 import Card from './ui/Card.vue'
@@ -14,10 +14,22 @@ const products = ref<Product[]>([])
 const branches = ref<Branch[]>([])
 const saving = ref(false)
 const searchProduct = ref('')
+const searchInputRef = ref<HTMLInputElement | null>(null)
 const currentProductPage = ref(1)
 const productPageSize = 5
 const showPrintDialog = ref(false)
 const printData = ref<any>(null)
+
+// Create product modal state
+const showCreateProductDialog = ref(false)
+const creatingProduct = ref(false)
+const newProductForm = reactive({
+  name: '',
+  unit: '',
+  stock: 0,
+  price_investor: 0,
+  price_shosha: 0
+})
 
 const form = reactive({
   branch_id: '',
@@ -103,6 +115,52 @@ async function loadProducts() {
 
 async function loadBranches() {
   branches.value = await api.listBranches()
+}
+
+// Create product functions
+function openCreateProductDialog() {
+  showCreateProductDialog.value = true
+}
+
+function closeCreateProductDialog() {
+  showCreateProductDialog.value = false
+  newProductForm.name = ''
+  newProductForm.unit = ''
+  newProductForm.stock = 0
+  newProductForm.price_investor = 0
+  newProductForm.price_shosha = 0
+}
+
+async function createProduct() {
+  if (!newProductForm.name || !newProductForm.unit) {
+    warning('Nama dan Satuan harus diisi')
+    return
+  }
+  
+  if (newProductForm.price_investor <= 0 && newProductForm.price_shosha <= 0) {
+    warning('Minimal salah satu harga (Investor atau SHOSHA) harus > 0')
+    return
+  }
+
+  creatingProduct.value = true
+  try {
+    await api.createProduct({
+      name: newProductForm.name,
+      unit: newProductForm.unit,
+      stock: newProductForm.stock,
+      price: newProductForm.price_investor > 0 ? newProductForm.price_investor : newProductForm.price_shosha,
+      price_investor: newProductForm.price_investor,
+      price_shosha: newProductForm.price_shosha
+    })
+    
+    success('Produk berhasil ditambahkan!')
+    await loadProducts() // Reload products list
+    closeCreateProductDialog()
+  } catch (err) {
+    error((err as Error).message)
+  } finally {
+    creatingProduct.value = false
+  }
 }
 
 function addToCart(product: Product) {
@@ -482,8 +540,50 @@ function closePrintDialog() {
   printData.value = null
 }
 
+// Keyboard shortcuts handler
+function handleKeydown(e: KeyboardEvent) {
+  const target = e.target as HTMLElement
+  const isInputField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+  
+  // Number keys 1-5: Quick add first 5 products (only when NOT in input field)
+  if (!isInputField && e.key >= '1' && e.key <= '5') {
+    e.preventDefault()
+    const idx = parseInt(e.key) - 1
+    const product = paginatedProducts.value[idx]
+    if (product && (product.stock ?? 0) > 0) {
+      addToCart(product)
+    }
+    return
+  }
+  
+  // Enter: Submit when form is valid (only when NOT in input field)
+  if (!isInputField && e.key === 'Enter' && isValid.value && !saving.value) {
+    e.preventDefault()
+    submit()
+    return
+  }
+  
+  // / key: Focus search (when not in input)
+  if (!isInputField && e.key === '/') {
+    e.preventDefault()
+    searchInputRef.value?.focus()
+    return
+  }
+}
+
 onMounted(async () => {
   await Promise.all([loadProducts(), loadBranches()])
+  // Auto-focus search input
+  nextTick(() => {
+    searchInputRef.value?.focus()
+  })
+  // Add global keyboard listener
+  window.addEventListener('keydown', handleKeydown)
+})
+
+// Cleanup keyboard listener on unmount
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
 })
 
 // Recalculate cart prices when branch changes
@@ -504,10 +604,20 @@ watch(() => form.branch_id, (newVal) => {
         <p class="text-sm uppercase tracking-[0.2em] text-emerald-500">Penjualan</p>
         <h2 class="text-2xl font-semibold">Point of Sale (POS)</h2>
       </div>
+      <div class="flex items-center gap-3">
+        <Button size="sm" variant="outline" @click="openCreateProductDialog">
+          + Tambah Barang Baru
+        </Button>
+        <div class="flex items-center gap-2 text-sm text-muted-foreground">
+          <kbd class="px-2 py-1 bg-muted rounded">/</kbd> Cari
+          <kbd class="px-2 py-1 bg-muted rounded">1-5</kbd> Tambah Cepat
+          <kbd class="px-2 py-1 bg-muted rounded">Enter</kbd> Simpan
+        </div>
+      </div>
     </header>
 
-    <div class="grid gap-4 lg:grid-cols-[1fr_400px]">
-      <!-- Left: Product Selection -->
+    <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <!-- Left: Product Selection (wider) -->
       <Card>
         <div class="p-4 space-y-4">
           <p class="text-sm font-semibold  border-b border-slate-700 pb-3">1. PILIH BARANG & TENTUKAN QTY
@@ -515,171 +625,168 @@ watch(() => form.branch_id, (newVal) => {
 
           <!-- Search Products -->
           <div class="space-y-1">
-            <Label>Cari Barang</Label>
-            <Input v-model="searchProduct" placeholder="Ketik nama barang..." type="search" />
+            <Label>Cari Barang <span class="text-xs text-slate-500">(tekan /)</span></Label>
+            <Input ref="searchInputRef" v-model="searchProduct" placeholder="Ketik nama barang..." type="search" />
           </div>
 
-          <!-- Product List -->
-          <div class="grid gap-2">
-            <div class="flex items-center justify-between text-xs">
-              <span>Menampilkan {{ paginatedProducts.length }} dari {{ filteredProducts.length }}</span>
-              <span>Hal {{ currentProductPage }} / {{ totalProductPages || 1 }}</span>
-            </div>
-            <div v-for="product in paginatedProducts" :key="product.id"
-              :class="['flex items-center justify-between rounded-lg p-3 ring-1 transition-all text-emerald-500/40', (product.stock ?? 0) > 0 ? 'ring-white/10 hover:ring-emerald-400/50 cursor-pointer text text-red-500/40' : 'ring-red-500/5 cursor-not-allowed opacity-60']"
+          <!-- Product Grid (3 kolom instead of list) -->
+          <div class="grid gap-3 grid-cols-2 sm:grid-cols-3">
+            <div v-for="(product, idx) in paginatedProducts" :key="product.id"
+              :class="['flex flex-col rounded-lg p-3 ring-1 transition-all cursor-pointer relative', (product.stock ?? 0) > 0 ? 'ring-white/10 hover:ring-emerald-400/50 bg-slate-800/50' : 'ring-red-500/5 cursor-not-allowed opacity-50']"
               @click="product.stock > 0 ? addToCart(product) : null">
-              <div>
-                <p :class="['text-sm font-semibold ', (product.stock ?? 0) > 0 ? 'text-black' : ' text-red-500/40']">{{
-                  product.name }}</p>
-                <p class="text-xs text-slate-400">
-                  Stok: {{ product.stock }} {{ product.unit }} • Rp{{ getApplicablePrice(product).toLocaleString('id-ID') }}
-                </p>
+              <!-- Badge number -->
+              <div v-if="idx < 5 && (product.stock ?? 0) > 0" class="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                {{ idx + 1 }}
               </div>
-              <Button variant="ghost" size="sm" class="text-emerald-200" :disabled="(product.stock ?? 0) <= 0">+
-                Tambah</Button>
+              <p :class="['text-sm font-semibold mb-1', (product.stock ?? 0) > 0 ? 'text-white' : 'text-red-500/60']">
+                {{ product.name }}
+              </p>
+              <p class="text-xs text-slate-400 mb-2">
+                Stok: {{ product.stock }} {{ product.unit }}
+              </p>
+              <p class="text-xs font-bold text-emerald-400">
+                Rp{{ getApplicablePrice(product).toLocaleString('id-ID') }}
+              </p>
+              <Button v-if="(product.stock ?? 0) > 0" variant="ghost" size="sm" class="mt-2 w-full text-emerald-200 text-xs">+ Tambah</Button>
+              <Button v-else variant="ghost" size="sm" class="mt-2 w-full text-red-300/50 text-xs" disabled>Habis</Button>
             </div>
-            <div v-if="filteredProducts.length === 0" class="text-center py-4 text-sm text-slate-400">
-              {{ searchProduct ? 'Barang tidak ditemukan' : 'Cari barang untuk menambahkan ke keranjang' }}
+          </div>
+
+          <!-- Pagination -->
+          <div v-if="filteredProducts.length > 0" class="flex items-center justify-between pt-2">
+            <Button variant="ghost" size="sm" :disabled="currentProductPage <= 1"
+              @click="currentProductPage--">Sebelumnya</Button>
+            <div class="text-xs text-slate-500">
+              Hal {{ currentProductPage }} / {{ totalProductPages || 1 }} ({{ paginatedProducts.length }}/{{ filteredProducts.length }})
             </div>
-            <div v-else class="flex items-center justify-between pt-2">
-              <Button variant="ghost" size="sm" :disabled="currentProductPage <= 1"
-                @click="currentProductPage--">Sebelumnya</Button>
-              <div class="text-xs text-slate-500">5 per halaman</div>
-              <Button variant="ghost" size="sm" :disabled="currentProductPage >= totalProductPages"
-                @click="currentProductPage++">Berikutnya</Button>
-            </div>
+            <Button variant="ghost" size="sm" :disabled="currentProductPage >= totalProductPages"
+              @click="currentProductPage++">Berikutnya</Button>
+          </div>
+
+          <div v-if="filteredProducts.length === 0" class="text-center py-6 text-sm text-slate-400">
+            {{ searchProduct ? 'Barang tidak ditemukan' : 'Cari barang untuk menambahkan ke keranjang' }}
           </div>
         </div>
       </Card>
 
-      <!-- Right: Cart & Checkout -->
+      <!-- Right: Cart & Checkout (narrower, stacked) -->
       <div class="space-y-4">
         <!-- Step 2: Branch Selection -->
         <Card>
           <div class="p-4 space-y-3">
-            <p class="text-sm font-semibold  border-b border-slate-700 pb-3">2. PILIH CABANG PEMBELI</p>
+            <p class="text-sm font-semibold  border-b border-slate-700 pb-3">2. PILIH CABANG</p>
             <div class="space-y-1">
               <Label>Cabang</Label>
               <BranchSelect v-model="form.branch_id" :branches="branches" />
             </div>
-            <div v-if="selectedBranch" class="text-xs text-slate-400">
-              <p>Kode: {{ selectedBranch.code }}</p>
-              <p v-if="canEditPrice" class="text-emerald-400">✓ Harga dapat diubah (cabang SHOSHA)</p>
+            <div v-if="selectedBranch" class="text-xs text-slate-400 bg-slate-800/50 p-2 rounded">
+              <p>Kode: <span class="text-emerald-400 font-semibold">{{ selectedBranch.code }}</span></p>
+              <p v-if="canEditPrice" class="text-emerald-400 mt-1">✓ Harga dapat diubah</p>
             </div>
           </div>
         </Card>
 
         <!-- Cart Items -->
         <Card>
-          <div class="p-4 space-y-4">
-            <p class="text-sm font-semibold  border-b border-slate-700 pb-3">KERANJANG BELANJA</p>
+          <div class="p-4 space-y-3">
+            <p class="text-sm font-semibold  border-b border-slate-700 pb-3">KERANJANG ({{ form.items.length }})</p>
 
-            <div class="space-y-2 max-h-64 overflow-y-auto">
+            <div class="space-y-2 max-h-56 overflow-y-auto">
               <div v-for="(item, idx) in cartItems" :key="idx"
-                class="flex flex-col gap-2 rounded-lg bg-emerald-600/50 p-2 ring-1 ring-white/10">
+                class="flex flex-col gap-2 rounded-lg bg-emerald-600/50 p-2 ring-1 ring-white/10 text-sm">
                 <div class="flex items-start justify-between">
-                  <div class="flex-1">
-                    <p class="text-sm text-white font-semibold">{{ item.name }}</p>
-                    <p class="text-xs text-white">{{ item.unit }}</p>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-white font-semibold truncate">{{ item.name }}</p>
+                    <p class="text-xs text-white/70">{{ item.unit }}</p>
                   </div>
-                  <Button variant="ghost" size="sm" class="text-rose-400" @click="removeItem(idx)">
+                  <Button variant="ghost" size="sm" class="text-rose-400 h-6 px-2" @click="removeItem(idx)">
                     ✕
                   </Button>
                 </div>
 
-                <div class="flex items-center gap-2">
-                  <div class="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-slate-400" @click="updateQty(idx, -1)">
-                      −
-                    </Button>
-                    <input :value="item.qty" type="number" min="1"
-                      class="w-14 h-6 bg-slate-700 text-center text-white text-xs rounded border border-slate-600"
-                      @change="form.items[idx].qty = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)" />
-                    <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-slate-400" @click="updateQty(idx, 1)">
-                      +
-                    </Button>
-                  </div>
-
-                  <div class="flex-1">
-                    <input v-model.number="form.items[idx].price" type="number" :disabled="!canEditPrice"
-                      :class="canEditPrice ? 'bg-slate-700' : 'bg-slate-800/50 opacity-60'"
-                      class="w-full h-6 text-right text-white text-xs rounded border border-slate-600 px-2" min="0"
-                      step="100" />
-                  </div>
+                <div class="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-slate-400" @click="updateQty(idx, -1)">−</Button>
+                  <input :value="item.qty" type="number" min="1"
+                    class="w-12 h-6 bg-slate-700 text-center text-white text-xs rounded border border-slate-600"
+                    @change="form.items[idx].qty = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)" />
+                  <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-slate-400" @click="updateQty(idx, 1)">+</Button>
+                  <input v-model.number="form.items[idx].price" type="number" :disabled="!canEditPrice"
+                    :class="canEditPrice ? 'bg-slate-700' : 'bg-slate-800/50 opacity-50'"
+                    class="flex-1 h-6 text-right text-white text-xs rounded border border-slate-600 px-1" min="0" step="100" />
                 </div>
 
-                <div class="text-right text-xs text-emerald-400 font-semibold">
-                  = Rp{{ (item.qty * item.price).toLocaleString('id-ID') }}
+                <div class="text-right text-xs text-emerald-300 font-semibold">
+                  Rp{{ (item.qty * item.price).toLocaleString('id-ID') }}
                 </div>
               </div>
 
-              <div v-if="form.items.length === 0" class="text-center py-6 text-sm text-slate-400">
+              <div v-if="form.items.length === 0" class="text-center py-4 text-xs text-slate-400">
                 Keranjang kosong
               </div>
             </div>
 
             <!-- Total -->
-            <div class="border-t border-slate-700 pt-3">
-              <div class="flex items-center justify-between text-lg">
-                <span class="text-white font-bold">TOTAL</span>
-                <span class="text-emerald-400 font-bold">Rp{{ total.toLocaleString('id-ID') }}</span>
+            <div class="border-t border-slate-700 pt-2">
+              <div class="flex items-center justify-between">
+                <span class="text-white font-bold text-sm">TOTAL</span>
+                <span class="text-emerald-400 font-bold text-lg">Rp{{ total.toLocaleString('id-ID') }}</span>
               </div>
             </div>
           </div>
         </Card>
 
-        <!-- Step 3: Payment Method -->
+        <!-- Step 3: Payment -->
         <Card>
           <div class="p-4 space-y-3">
-            <p class="text-sm font-semibold text-black border-b border-slate-700 pb-3">3. PILIH METODE PEMBAYARAN</p>
+            <p class="text-sm font-semibold text-black border-b border-slate-700 pb-3">3. PEMBAYARAN</p>
 
-            <div class="space-y-1">
-              <Label>Metode Pembayaran</Label>
-              <Select v-model="form.payment_method">
-                <option value="cash">Cash (Tunai)</option>
-                <option value="hutang">Hutang</option>
-              </Select>
-            </div>
-
-            <!-- Cash Payment Amount (only show if payment_method is 'cash') -->
-            <div v-if="form.payment_method === 'cash'" class="space-y-1">
-              <Label>Jumlah Bayar</Label>
-              <Input v-model.number="form.jumlah_bayar" type="number" placeholder="0" min="0" step="1000" />
-            </div>
-
-            <!-- Change Display (only show if payment_method is 'cash' and payment is valid) -->
-            <div v-if="form.payment_method === 'cash'"
-              class="rounded-lg bg-emerald-500/10 border border-emerald-400/30 p-3">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-emerald-200">Kembalian</span>
-                <span class="text-lg font-bold text-emerald-400">Rp{{ kembalian.toLocaleString('id-ID') }}</span>
+            <div class="space-y-2">
+              <div class="space-y-1">
+                <Label class="text-xs">Metode</Label>
+                <Select v-model="form.payment_method" class="text-sm">
+                  <option value="cash">Cash (Tunai)</option>
+                  <option value="hutang">Hutang</option>
+                </Select>
               </div>
-            </div>
 
-            <div class="space-y-1">
-              <Label>No. Invoice (Opsional)</Label>
-              <Input v-model="form.receipt_no" placeholder="Auto-generate" />
-            </div>
+              <div v-if="form.payment_method === 'cash'" class="space-y-1">
+                <Label class="text-xs">Jumlah Bayar</Label>
+                <Input v-model.number="form.jumlah_bayar" type="number" placeholder="0" min="0" step="1000" class="text-sm" />
+              </div>
 
-            <div class="space-y-1">
-              <Label>Tanggal Transaksi</Label>
-              <input v-model="form.created_at" type="date"
-                class="w-full border border-slate-300 h-10 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400" />
-            </div>
+              <div v-if="form.payment_method === 'cash'"
+                class="rounded-lg bg-emerald-500/10 border border-emerald-400/30 p-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold text-emerald-200">Kembalian</span>
+                  <span class="text-sm font-bold text-emerald-400">Rp{{ kembalian.toLocaleString('id-ID') }}</span>
+                </div>
+              </div>
 
-            <div v-if="form.payment_method === 'hutang'" class="space-y-1">
-              <Label>Catatan (Opsional)</Label>
-              <textarea v-model="form.notes" rows="2" placeholder="Catatan tambahan..."
-                class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-emerald-400" />
+              <div class="space-y-1">
+                <Label class="text-xs">No. Invoice</Label>
+                <Input v-model="form.receipt_no" placeholder="Auto" class="text-sm" />
+              </div>
+
+              <div class="space-y-1">
+                <Label class="text-xs">Tanggal</Label>
+                <input v-model="form.created_at" type="date"
+                  class="w-full border border-slate-300 h-8 rounded px-2 py-1 text-sm ring-1 ring-white/10 focus:ring-emerald-400" />
+              </div>
+
+              <div v-if="form.payment_method === 'hutang'" class="space-y-1">
+                <Label class="text-xs">Catatan</Label>
+                <textarea v-model="form.notes" rows="2" placeholder="..."
+                  class="w-full border border-slate-300 rounded px-2 py-1 text-sm ring-1 ring-white/10 focus:ring-emerald-400" />
+              </div>
             </div>
 
             <!-- Checkout Button -->
             <div class="space-y-2 pt-2">
-              <Button :disabled="saving || !isValid" class="w-full" @click="submit">
-                {{ saving ? 'Menyimpan...' : 'Checkout & Cetak' }}
+              <Button :disabled="saving || !isValid" class="w-full text-sm" @click="submit">
+                {{ saving ? 'Menyimpan...' : 'Checkout' }}
               </Button>
-              <Button variant="ghost" class="w-full text-slate-400" @click="form.items = []">
-                Bersihkan Keranjang
+              <Button variant="ghost" class="w-full text-slate-400 text-xs" @click="form.items = []">
+                Bersihkan
               </Button>
             </div>
           </div>
@@ -702,6 +809,56 @@ watch(() => form.branch_id, (newVal) => {
             </Button>
             <Button variant="ghost" @click="closePrintDialog">
               Tutup
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+
+    <!-- Create Product Modal -->
+    <div v-if="showCreateProductDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click="closeCreateProductDialog">
+      <Card class="max-w-lg w-full" @click.stop>
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="text-lg font-semibold text-slate-900">Tambah Barang Baru</h3>
+            <Button variant="ghost" size="sm" @click="closeCreateProductDialog">✕</Button>
+          </div>
+
+          <div class="space-y-3">
+            <div class="space-y-1">
+              <Label>Nama Barang <span class="text-red-500">*</span></Label>
+              <Input v-model="newProductForm.name" placeholder="Contoh: Sabun Mandi" />
+            </div>
+
+            <div class="space-y-1">
+              <Label>Satuan <span class="text-red-500">*</span></Label>
+              <Input v-model="newProductForm.unit" placeholder="Contoh: pcs, kg, liter" />
+            </div>
+
+            <div class="space-y-1">
+              <Label>Stok Awal</Label>
+              <Input v-model.number="newProductForm.stock" type="number" min="0" placeholder="0" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <Label>Harga Investor</Label>
+                <Input v-model.number="newProductForm.price_investor" type="number" min="0" step="100" placeholder="0" />
+              </div>
+
+              <div class="space-y-1">
+                <Label>Harga SHOSHA</Label>
+                <Input v-model.number="newProductForm.price_shosha" type="number" min="0" step="100" placeholder="0" />
+              </div>
+            </div>
+
+            <p class="text-xs text-slate-500">* Minimal salah satu harga (Investor atau SHOSHA) harus diisi</p>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="ghost" @click="closeCreateProductDialog" :disabled="creatingProduct">Batal</Button>
+            <Button @click="createProduct" :disabled="creatingProduct">
+              {{ creatingProduct ? 'Menyimpan...' : 'Simpan' }}
             </Button>
           </div>
         </div>

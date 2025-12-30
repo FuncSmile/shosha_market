@@ -206,7 +206,7 @@ func main() {
 		db.Where("updated_at >= ? OR created_at >= ?", since, since).Find(&products)
 		db.Find(&branches)
 		log.Printf("[SYNC] Branches found: %d, error: %v", len(branches), db.Error)
-		
+
 		// Query sales without branch_id filter since client sends branch code but DB has branch UUID
 		// Client can filter locally if needed
 		log.Printf("[SYNC] Querying sales with since: %v", since)
